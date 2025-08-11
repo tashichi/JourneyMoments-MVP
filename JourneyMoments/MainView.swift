@@ -17,7 +17,8 @@ struct MainView: View {
                         projects: projectManager.projects,
                         onCreateProject: createNewProject,
                         onOpenProject: openProject,
-                        onPlayProject: playProject
+                        onPlayProject: playProject,
+                        onDeleteProject: deleteProject  // 🔧 追加: 削除機能
                     )
                     
                 case .camera:
@@ -90,6 +91,21 @@ struct MainView: View {
         isPlaying = false  // 初期状態は停止
         currentScreen = .player
         print("🎬 プレイヤー画面に遷移: \(project.name)")
+    }
+    
+    // 🔧 追加: プロジェクト削除機能
+    private func deleteProject(_ project: Project) {
+        // 現在選択中のプロジェクトが削除される場合、選択を解除
+        if currentProject?.id == project.id {
+            currentProject = nil
+            currentScreen = .projects
+        }
+        
+        // ProjectManagerで削除実行
+        projectManager.deleteProject(project)
+        
+        print("✅ プロジェクト削除完了: \(project.name)")
+        print("📊 残りプロジェクト数: \(projectManager.projects.count)")
     }
     
     // MARK: - Recording Handler

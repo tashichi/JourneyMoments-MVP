@@ -15,17 +15,19 @@ class VideoManager: NSObject, ObservableObject {
     // MARK: - Properties
     private var captureSession: AVCaptureSession?
     private var videoDeviceInput: AVCaptureDeviceInput?
+    private var audioDeviceInput: AVCaptureDeviceInput?  // 🔧 追加: 音声入力
     private var movieOutput: AVCaptureMovieFileOutput?
     
     @Published var currentCameraPosition: AVCaptureDevice.Position = .back
     @Published var isSessionRunning = false
     @Published var cameraPermissionGranted = false
+    @Published var microphonePermissionGranted = false  // 🔧 追加: マイク権限
     
     var previewLayer: AVCaptureVideoPreviewLayer?
     
     private var recordingCompletion: ((Result<URL, Error>) -> Void)?
     
-    // MARK: - Camera Setup
+    // MARK: - Permissions
     
     func requestCameraPermission() async {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
@@ -40,11 +42,30 @@ class VideoManager: NSObject, ObservableObject {
         }
     }
     
+    // 🔧 追加: マイク権限リクエスト
+    func requestMicrophonePermission() async {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        
+        switch status {
+        case .authorized:
+            microphonePermissionGranted = true
+        case .notDetermined:
+            microphonePermissionGranted = await AVCaptureDevice.requestAccess(for: .audio)
+        default:
+            microphonePermissionGranted = false
+        }
+    }
+    
+    // MARK: - Camera Setup
+    
     func setupCamera() async {
         guard cameraPermissionGranted else {
             print("❌ カメラ権限が許可されていません")
             return
         }
+        
+        // 🔧 追加: マイク権限もリクエスト
+        await requestMicrophonePermission()
         
         captureSession = AVCaptureSession()
         guard let captureSession = captureSession else { return }
@@ -58,6 +79,9 @@ class VideoManager: NSObject, ObservableObject {
         
         // カメラデバイス設定
         await setupCameraDevice(position: currentCameraPosition)
+        
+        // 🔧 追加: 音声デバイス設定
+        await setupAudioDevice()
         
         // 動画出力設定
         setupMovieOutput()
@@ -101,6 +125,40 @@ class VideoManager: NSObject, ObservableObject {
         }
     }
     
+    // 🔧 追加: 音声デバイス設定
+    private func setupAudioDevice() async {
+        guard let captureSession = captureSession else { return }
+        guard microphonePermissionGranted else {
+            print("❌ マイク権限が許可されていません")
+            return
+        }
+        
+        // 既存の音声入力を削除
+        if let currentAudioInput = audioDeviceInput {
+            captureSession.removeInput(currentAudioInput)
+        }
+        
+        // マイクデバイスを取得
+        guard let audioDevice = AVCaptureDevice.default(for: .audio) else {
+            print("❌ 音声デバイスが見つかりません")
+            return
+        }
+        
+        do {
+            let audioInput = try AVCaptureDeviceInput(device: audioDevice)
+            
+            if captureSession.canAddInput(audioInput) {
+                captureSession.addInput(audioInput)
+                audioDeviceInput = audioInput
+                print("✅ 音声デバイス設定完了")
+            } else {
+                print("❌ 音声入力を追加できません")
+            }
+        } catch {
+            print("❌ 音声デバイス作成エラー: \(error)")
+        }
+    }
+    
     private func setupMovieOutput() {
         guard let captureSession = captureSession else { return }
         
@@ -115,6 +173,13 @@ class VideoManager: NSObject, ObservableObject {
                 if connection.isVideoStabilizationSupported {
                     connection.preferredVideoStabilizationMode = .auto
                 }
+            }
+            
+            // 🔧 追加: 音声接続の確認
+            if let audioConnection = movieOutput.connection(with: .audio) {
+                print("✅ 音声出力接続確認: \(audioConnection.isEnabled)")
+            } else {
+                print("⚠️ 音声出力接続が見つかりません")
             }
             
             print("✅ 動画出力設定完了")
@@ -197,6 +262,11 @@ class VideoManager: NSObject, ObservableObject {
             throw RecordingError.alreadyRecording
         }
         
+        // 🔧 追加: 録画前に音声接続を確認
+        if let audioConnection = movieOutput.connection(with: .audio) {
+            print("🎤 音声録音設定: \(audioConnection.isEnabled ? "有効" : "無効")")
+        }
+        
         // 出力ファイルURL作成
         let outputURL = createOutputURL()
         
@@ -231,6 +301,16 @@ extension VideoManager: AVCaptureFileOutputRecordingDelegate {
     
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         print("🎬 録画開始: \(fileURL.lastPathComponent)")
+        // 🔧 修正: 接続状況を正しい方法でログ出力
+        for connection in connections {
+            if let inputPort = connection.inputPorts.first {
+                if inputPort.mediaType == .video {
+                    print("📹 映像接続: 有効")
+                } else if inputPort.mediaType == .audio {
+                    print("🎤 音声接続: 有効")
+                }
+            }
+        }
     }
     
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {

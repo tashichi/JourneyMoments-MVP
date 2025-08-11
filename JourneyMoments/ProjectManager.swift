@@ -35,11 +35,57 @@ class ProjectManager: ObservableObject {
         }
     }
     
-    // プロジェクト削除
+    // プロジェクト削除（完全版：データ + 動画ファイル削除）
     func deleteProject(_ project: Project) {
+        print("🗑 プロジェクト削除開始: \(project.name)")
+        
+        // 1. 動画ファイルを物理削除
+        deleteVideoFiles(for: project)
+        
+        // 2. プロジェクトリストから削除
         projects.removeAll { $0.id == project.id }
+        
+        // 3. UserDefaultsに保存
         saveProjects()
-        print("🗑 プロジェクト削除: \(project.name)")
+        
+        print("✅ プロジェクト削除完了: \(project.name)")
+        print("📊 残りプロジェクト数: \(projects.count)")
+    }
+    
+    // 動画ファイルの物理削除
+    private func deleteVideoFiles(for project: Project) {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        var deletedCount = 0
+        var errorCount = 0
+        
+        print("🔍 削除対象セグメント数: \(project.segments.count)")
+        
+        for segment in project.segments {
+            let fileURL: URL
+            
+            // ファイル名のみの場合（新しい形式）
+            if !segment.uri.hasPrefix("/") {
+                fileURL = documentsPath.appendingPathComponent(segment.uri)
+            } else {
+                // 絶対パスの場合（旧い形式）- 後方互換性
+                fileURL = URL(fileURLWithPath: segment.uri)
+            }
+            
+            do {
+                if FileManager.default.fileExists(atPath: fileURL.path) {
+                    try FileManager.default.removeItem(at: fileURL)
+                    deletedCount += 1
+                    print("🗑 ファイル削除: \(fileURL.lastPathComponent)")
+                } else {
+                    print("⚠️ ファイル未発見: \(fileURL.lastPathComponent)")
+                }
+            } catch {
+                errorCount += 1
+                print("❌ ファイル削除エラー: \(fileURL.lastPathComponent) - \(error)")
+            }
+        }
+        
+        print("📊 ファイル削除結果: 成功 \(deletedCount)件、エラー \(errorCount)件")
     }
     
     // MARK: - データ永続化
@@ -81,5 +127,19 @@ class ProjectManager: ObservableObject {
     // 統計情報
     var totalSegments: Int {
         return projects.reduce(0) { $0 + $1.segmentCount }
+    }
+    
+    // 全プロジェクト削除（開発・テスト用）
+    func deleteAllProjects() {
+        print("🗑 全プロジェクト削除開始")
+        
+        for project in projects {
+            deleteVideoFiles(for: project)
+        }
+        
+        projects.removeAll()
+        saveProjects()
+        
+        print("✅ 全プロジェクト削除完了")
     }
 }
