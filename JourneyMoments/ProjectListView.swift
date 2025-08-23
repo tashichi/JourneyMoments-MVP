@@ -96,7 +96,7 @@ struct ProjectListView: View {
         .padding(.horizontal, 40)
     }
     
-    // プロジェクト一覧（美しいデザイン版）
+    // 🔧 修正: プロジェクト一覧（ボタン競合修正版）
     private var projectListView: some View {
         List {
             ForEach(projects) { project in
@@ -125,10 +125,13 @@ struct ProjectListView: View {
                         }
                     }
                     
-                    // ボタン
+                    // 🔧 修正: ボタン（競合を避ける新しい構造）
                     HStack(spacing: 12) {
-                        // 撮影ボタン
-                        Button(action: { onOpenProject(project) }) {
+                        // 撮影ボタン（修正版）
+                        Button {
+                            print("🔵 撮影ボタンがタップされました: \(project.name)")
+                            onOpenProject(project)
+                        } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "camera.fill")
                                     .font(.caption)
@@ -142,10 +145,14 @@ struct ProjectListView: View {
                             .foregroundColor(.white)
                             .cornerRadius(15)
                         }
+                        .buttonStyle(PlainButtonStyle()) // 🔧 追加: 競合を避ける
                         
                         // 再生ボタン（セグメントがある場合のみ）
                         if project.segmentCount > 0 {
-                            Button(action: { onPlayProject(project) }) {
+                            Button {
+                                print("🔴 再生ボタンがタップされました: \(project.name)")
+                                onPlayProject(project)
+                            } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "play.fill")
                                         .font(.caption)
@@ -159,6 +166,7 @@ struct ProjectListView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(15)
                             }
+                            .buttonStyle(PlainButtonStyle()) // 🔧 追加: 競合を避ける
                         }
                         
                         Spacer()
