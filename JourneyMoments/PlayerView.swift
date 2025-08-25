@@ -58,7 +58,7 @@ struct PlayerView: View {
         }
         .onAppear {
             setupPlayer()
-            print("🎬 PlayerView表示開始")
+            print("🎬 PlayerView display started")
         }
         .onDisappear {
             cleanupPlayer()
@@ -79,11 +79,11 @@ struct PlayerView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.gray)
             
-            Text("再生できる動画がありません")
+            Text("No videos to play")
                 .font(.title2)
                 .foregroundColor(.white)
             
-            Text("カメラ画面で動画を撮影してください")
+            Text("Please record videos in camera view")
                 .font(.body)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -97,12 +97,12 @@ struct PlayerView: View {
             HStack {
                 // 戻るボタン
                 Button(action: {
-                    print("🔙 戻るボタンタップ")
+                    print("🔙 Back button tapped")
                     onBack()
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("戻る")
+                        Text("Back")
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -184,7 +184,7 @@ struct PlayerView: View {
         HStack(spacing: 40) {
             // 前のセグメント
             Button(action: {
-                print("🔙 前のセグメントボタンタップ")
+                print("🔙 Previous segment button tapped")
                 previousSegment()
             }) {
                 Image(systemName: "backward.fill")
@@ -198,7 +198,7 @@ struct PlayerView: View {
             
             // 再生/停止
             Button(action: {
-                print("⏯️ 再生/停止ボタンタップ")
+                print("⏯️ Play/Pause button tapped")
                 togglePlayback()
             }) {
                 Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -210,7 +210,7 @@ struct PlayerView: View {
             
             // 次のセグメント
             Button(action: {
-                print("🔜 次のセグメントボタンタップ")
+                print("🔜 Next segment button tapped")
                 nextSegment()
             }) {
                 Image(systemName: "forward.fill")
@@ -228,7 +228,7 @@ struct PlayerView: View {
     private var segmentInfo: some View {
         VStack(spacing: 4) {
             if let segment = currentSegment {
-                Text("セグメント \(segment.order)")
+                Text("Segment \(segment.order)")
                     .font(.caption)
                     .foregroundColor(.yellow)
                     .fontWeight(.semibold)
@@ -246,14 +246,14 @@ struct PlayerView: View {
     // MARK: - Functions
     
     private func setupPlayer() {
-        print("🎬 PlayerView セットアップ開始")
+        print("🎬 PlayerView setup started")
         loadCurrentSegment()
     }
     
     // 🔧 修正済み: ファイルパス問題解決
     private func loadCurrentSegment() {
         guard let segment = currentSegment else {
-            print("❌ 再生するセグメントがありません")
+            print("❌ No segment to play")
             return
         }
         
@@ -277,16 +277,16 @@ struct PlayerView: View {
         
         // ファイルの存在確認
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            print("❌ ファイルが見つかりません: \(fileURL.path)")
-            print("🔍 探索場所: \(documentsPath.path)")
+            print("❌ File not found: \(fileURL.path)")
+            print("🔍 Search location: \(documentsPath.path)")
             
             // デバッグ: Documents ディレクトリの内容を確認
             do {
                 let files = try FileManager.default.contentsOfDirectory(atPath: documentsPath.path)
-                print("📁 Documents ディレクトリ内容:")
+                print("📁 Documents directory contents:")
                 files.forEach { print("  - \($0)") }
             } catch {
-                print("❌ ディレクトリ読み込みエラー: \(error)")
+                print("❌ Directory read error: \(error)")
             }
             
             return
@@ -301,7 +301,7 @@ struct PlayerView: View {
             object: newPlayerItem,
             queue: .main
         ) { _ in
-            print("🔔 セグメント再生完了通知受信 - セグメント\(self.currentSegmentIndex + 1)")
+            print("🔔 Segment playback completed - Segment \(self.currentSegmentIndex + 1)")
             self.handleSegmentEnd()
         }
         
@@ -314,8 +314,8 @@ struct PlayerView: View {
         isPlaying = false
         currentTime = 0
         
-        print("✅ セグメント読み込み完了: \(segment.order), ファイル: \(fileURL.lastPathComponent)")
-        print("🔄 通知監視設定完了: セグメント\(segment.order)の再生終了を監視")
+        print("✅ Segment loaded: \(segment.order), File: \(fileURL.lastPathComponent)")
+        print("🔄 Notification observer set: Monitoring playback end for segment \(segment.order)")
         
         // 時間監視を開始
         startTimeObserver()
@@ -323,13 +323,13 @@ struct PlayerView: View {
     
     // 🔧 修正: 再生終了時の処理（最後のセグメント後に最初に戻る）
     private func handleSegmentEnd() {
-        print("🔔 セグメント再生終了 - 現在: \(currentSegmentIndex + 1)/\(project.segments.count)")
+        print("🔔 Segment playback ended - Current: \(currentSegmentIndex + 1)/\(project.segments.count)")
         
         if currentSegmentIndex < project.segments.count - 1 {
             // 次のセグメントがある場合: 自動で次へ移行
-            print("🔄 次のセグメントへ自動移行開始")
+            print("🔄 Auto advancing to next segment")
             let nextIndex = currentSegmentIndex + 1
-            print("🔄 移行先: セグメント\(nextIndex + 1)")
+            print("🔄 Advancing to: Segment \(nextIndex + 1)")
             
             currentSegmentIndex = nextIndex
             loadCurrentSegment()
@@ -339,13 +339,13 @@ struct PlayerView: View {
             
             // 自動再生継続
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                print("🔄 自動再生実行: セグメント\(self.currentSegmentIndex + 1)")
+                print("🔄 Auto playback executing: Segment \(self.currentSegmentIndex + 1)")
                 self.player.play()
-                print("▶️ 自動再生継続完了")
+                print("▶️ Auto playback continued")
             }
         } else {
             // 最後のセグメントが終了した場合: 最初に戻って停止
-            print("🏁 全セグメント再生完了 - 最初のセグメントに戻ります")
+            print("🏁 All segments completed - Returning to first segment")
             
             // 最初のセグメントに戻る
             currentSegmentIndex = 0
@@ -354,8 +354,8 @@ struct PlayerView: View {
             // 停止状態にする
             isPlaying = false
             
-            print("🔄 最初のセグメント（1番目）に戻りました")
-            print("⏹️ 停止状態 - 再生ボタンで再度再生可能")
+            print("🔄 Returned to first segment (1st)")
+            print("⏹️ Stopped - Press play button to replay")
         }
     }
     
@@ -393,17 +393,17 @@ struct PlayerView: View {
         if isPlaying {
             player.pause()
             isPlaying = false
-            print("⏸️ 再生停止")
+            print("⏸️ Playback paused")
         } else {
             player.play()
             isPlaying = true
-            print("▶️ 再生開始")
+            print("▶️ Playback started")
         }
     }
     
     private func previousSegment() {
         guard currentSegmentIndex > 0 else {
-            print("❌ これ以上前のセグメントはありません")
+            print("❌ No previous segment available")
             return
         }
         
@@ -416,12 +416,12 @@ struct PlayerView: View {
             }
         }
         
-        print("⏮️ 前のセグメント: \(currentSegmentIndex + 1)")
+        print("⏮️ Previous segment: \(currentSegmentIndex + 1)")
     }
     
     private func nextSegment() {
         guard currentSegmentIndex < project.segments.count - 1 else {
-            print("❌ これ以上次のセグメントはありません")
+            print("❌ No next segment available")
             return
         }
         
@@ -434,7 +434,7 @@ struct PlayerView: View {
             }
         }
         
-        print("⏭️ 次のセグメント: \(currentSegmentIndex + 1)")
+        print("⏭️ Next segment: \(currentSegmentIndex + 1)")
     }
     
     private func cleanupPlayer() {
@@ -443,7 +443,7 @@ struct PlayerView: View {
         // 🔧 修正: 明示的に通知監視を削除
         NotificationCenter.default.removeObserver(self, name: .AVPlayerItemDidPlayToEndTime, object: nil)
         player.replaceCurrentItem(with: nil)
-        print("🧹 PlayerView クリーンアップ完了")
+        print("🧹 PlayerView cleanup completed")
     }
     
     // MARK: - Helper Functions
@@ -499,7 +499,7 @@ struct VideoPlayerView: UIViewRepresentable {
 struct PlayerView_Previews: PreviewProvider {
     static var previews: some View {
         PlayerView(
-            project: Project(name: "テストプロジェクト"),
+            project: Project(name: "Test Project"),
             onBack: { }
         )
     }

@@ -29,7 +29,7 @@ struct CameraView: View {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 60))
                         .foregroundColor(.gray)
-                    Text("カメラ権限を許可してください")
+                    Text("Please allow camera access")
                         .foregroundColor(.white)
                         .padding()
                 }
@@ -72,7 +72,7 @@ struct CameraView: View {
             videoManager.stopSession()
         }
         // 🔧 修正: エラー時のみアラート表示
-        .alert("撮影エラー", isPresented: $showingAlert) {
+        .alert("Recording Error", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
             Text(alertMessage)
@@ -87,7 +87,7 @@ struct CameraView: View {
                 Button(action: onBackToProjects) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                        Text("プロジェクト一覧")
+                        Text("Projects")
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -120,7 +120,7 @@ struct CameraView: View {
                         .foregroundColor(.white)
                         .shadow(color: .black, radius: 2, x: 1, y: 1)
                     
-                    Text("\(project.segmentCount)秒撮影済み")
+                    Text("\(project.segmentCount)s recorded")
                         .font(.caption)
                         .foregroundColor(.yellow)
                         .fontWeight(.semibold)
@@ -154,7 +154,7 @@ struct CameraView: View {
                                     .stroke(Color.red, lineWidth: 6)
                             )
                         
-                        Text(isRecording ? "録画中" : "1秒撮影")
+                        Text(isRecording ? "Recording" : "Tap to Record")
                             .font(isRecording ? .caption : .body)
                             .fontWeight(.bold)
                             .foregroundColor(isRecording ? .white : .black)
@@ -172,7 +172,7 @@ struct CameraView: View {
     // 🔧 修正: 録画中表示を独立した固定位置に
     private var recordingStatusView: some View {
         VStack {
-            Text("📹 録画中...")
+            Text("📹 Recording...")
                 .font(.title2)
                 .fontWeight(.bold)
                 .foregroundColor(.red)
@@ -208,15 +208,15 @@ struct CameraView: View {
     // MARK: - Functions
     
     private func setupCamera() {
-        print("🔧 setupCamera() 開始")
+        print("🔧 setupCamera() started")
         Task {
-            print("🔧 権限リクエスト開始")
+            print("🔧 Permission request started")
             await videoManager.requestCameraPermission()
-            print("🔧 権限リクエスト完了: \(videoManager.cameraPermissionGranted)")
+            print("🔧 Permission request completed: \(videoManager.cameraPermissionGranted)")
             
-            print("🔧 カメラセットアップ開始")
+            print("🔧 Camera setup started")
             await videoManager.setupCamera()
-            print("🔧 カメラセットアップ完了")
+            print("🔧 Camera setup completed")
         }
     }
     
@@ -250,7 +250,7 @@ struct CameraView: View {
                 onRecordingComplete(newSegment)
                 
                 // 🔧 修正: 自動消失する成功トースト表示
-                successMessage = "✅ \(project.segments.count + 1)秒目撮影完了"
+                successMessage = "✅ Segment \(project.segments.count + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
                 }
@@ -262,13 +262,13 @@ struct CameraView: View {
                     }
                 }
                 
-                print("✅ セグメント保存: \(filename) - \(project.segments.count + 1)秒目撮影完了")
+                print("✅ Segment saved: \(filename) - Segment \(project.segments.count + 1) recorded")
                 
             } catch {
                 // エラー時のみアラート表示
-                alertMessage = "撮影に失敗しました: \(error.localizedDescription)"
+                alertMessage = "Recording failed: \(error.localizedDescription)"
                 showingAlert = true
-                print("❌ 撮影エラー: \(error)")
+                print("❌ Recording error: \(error)")
             }
             
             isRecording = false
@@ -308,7 +308,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
 struct CameraView_Previews: PreviewProvider {
     static var previews: some View {
         CameraView(
-            currentProject: Project(name: "テストプロジェクト"),
+            currentProject: Project(name: "Test Project"),
             onRecordingComplete: { _ in },
             onBackToProjects: { }
         )

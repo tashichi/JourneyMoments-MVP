@@ -16,7 +16,7 @@ class ProjectManager: ObservableObject {
     
     // 新規プロジェクト作成 (React Native版の createNewProject と同等)
     func createNewProject() -> Project {
-        let projectName = "プロジェクト \(projects.count + 1)"
+        let projectName = "Project  \(projects.count + 1)"
         let newProject = Project(name: projectName)
         
         projects.append(newProject)

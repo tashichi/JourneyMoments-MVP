@@ -29,19 +29,19 @@ struct ProjectListView: View {
             }
         }
         // 🔧 追加: 削除確認アラート
-        .alert("プロジェクトを削除", isPresented: $showDeleteAlert) {
-            Button("削除", role: .destructive) {
+        .alert("Delete Project", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
                 if let project = projectToDelete {
                     onDeleteProject(project)
                 }
                 projectToDelete = nil
             }
-            Button("キャンセル", role: .cancel) {
+            Button("Cancel", role: .cancel) {
                 projectToDelete = nil
             }
         } message: {
             if let project = projectToDelete {
-                Text("「\(project.name)」を削除しますか？\nこの操作は取り消せません。")
+                Text("Delete \"\(project.name)\"?\nThis action cannot be undone.")
             }
         }
     }
@@ -57,7 +57,7 @@ struct ProjectListView: View {
             Button(action: onCreateProject) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
-                    Text("新しいプロジェクト")
+                    Text("New Project")
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 10)
@@ -80,12 +80,12 @@ struct ProjectListView: View {
                 .font(.system(size: 80))
                 .foregroundColor(.gray)
             
-            Text("プロジェクトがありません")
+            Text("No Projects")
                 .font(.title2)
                 .fontWeight(.semibold)
                 .foregroundColor(.white)
             
-            Text("新しいプロジェクトを作成して\n1秒動画を撮影しましょう！")
+            Text("Create a new project to start\ncapturing 1-second videos!")
                 .font(.body)
                 .foregroundColor(.gray)
                 .multilineTextAlignment(.center)
@@ -112,7 +112,7 @@ struct ProjectListView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "video.fill")
                                     .font(.caption)
-                                Text("\(project.segmentCount)秒")
+                                Text("\(project.segmentCount)s")
                                     .font(.caption)
                             }
                             .foregroundColor(.yellow)
@@ -129,13 +129,13 @@ struct ProjectListView: View {
                     HStack(spacing: 12) {
                         // 撮影ボタン（修正版）
                         Button {
-                            print("🔵 撮影ボタンがタップされました: \(project.name)")
+                            print("🔵 Record button tapped: \(project.name)")
                             onOpenProject(project)
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "camera.fill")
                                     .font(.caption)
-                                Text("撮影")
+                                Text("Record")
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
@@ -150,13 +150,13 @@ struct ProjectListView: View {
                         // 再生ボタン（セグメントがある場合のみ）
                         if project.segmentCount > 0 {
                             Button {
-                                print("🔴 再生ボタンがタップされました: \(project.name)")
+                                print("🔴 Play button tapped: \(project.name)")
                                 onPlayProject(project)
                             } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "play.fill")
                                         .font(.caption)
-                                    Text("再生")
+                                    Text("Play")
                                         .font(.caption)
                                         .fontWeight(.medium)
                                 }
@@ -182,8 +182,8 @@ struct ProjectListView: View {
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
                 .swipeActions(edge: .trailing) {
-                    Button("削除") {
-                        print("🔍 削除対象: \(project.name)")
+                    Button("Delete") {
+                        print("🔍 Delete target: \(project.name)")
                         projectToDelete = project
                         showDeleteAlert = true
                     }
@@ -223,7 +223,7 @@ struct ProjectRowView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "video.fill")
                             .font(.caption)
-                        Text("\(project.segmentCount)秒")
+                        Text("\(project.segmentCount)s")
                             .font(.caption)
                     }
                     .foregroundColor(.yellow)
@@ -243,7 +243,7 @@ struct ProjectRowView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "camera.fill")
                             .font(.caption)
-                        Text("撮影")
+                        Text("Record")
                             .font(.caption)
                             .fontWeight(.medium)
                     }
@@ -260,7 +260,7 @@ struct ProjectRowView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "play.fill")
                                 .font(.caption)
-                            Text("再生")
+                            Text("Play")
                                 .font(.caption)
                                 .fontWeight(.medium)
                         }
@@ -296,7 +296,7 @@ struct ProjectRowView: View {
 struct ProjectListView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleProjects = [
-            Project(name: "東京旅行", segments: [
+            Project(name: "Tokyo Trip", segments: [
                 VideoSegment(uri: "sample1", facing: "back", order: 1)
             ])
         ]

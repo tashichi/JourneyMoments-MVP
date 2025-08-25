@@ -50,11 +50,11 @@ struct MainView: View {
                                     .font(.system(size: 60))
                                     .foregroundColor(.yellow)
                                 
-                                Text("プロジェクトが選択されていません")
+                                Text("No Project Selected")
                                     .font(.title2)
                                     .foregroundColor(.white)
                                 
-                                Button("プロジェクト一覧に戻る") {
+                                Button("Back to Projects") {
                                     currentScreen = .projects
                                 }
                                 .padding()
