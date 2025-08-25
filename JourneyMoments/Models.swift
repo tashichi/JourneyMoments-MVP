@@ -32,7 +32,7 @@ struct VideoSegment: Codable, Identifiable {
 // React Native版の project と同等の構造
 struct Project: Codable, Identifiable {
     let id: Int
-    let name: String
+    var name: String
     var segments: [VideoSegment]
     let createdAt: Date
     var lastModified: Date

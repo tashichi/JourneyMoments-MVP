@@ -16,13 +16,13 @@ class ProjectManager: ObservableObject {
     
     // 新規プロジェクト作成 (React Native版の createNewProject と同等)
     func createNewProject() -> Project {
-        let projectName = "Project  \(projects.count + 1)"
+        let projectName = "Project \(projects.count + 1)"  // 🔧 修正: スペース調整
         let newProject = Project(name: projectName)
         
         projects.append(newProject)
         saveProjects()
         
-        print("✅ 新規プロジェクト作成: \(projectName)")
+        print("✅ New project created: \(projectName)")  // 🔧 英語化
         return newProject
     }
     
@@ -31,13 +31,29 @@ class ProjectManager: ObservableObject {
         if let index = projects.firstIndex(where: { $0.id == updatedProject.id }) {
             projects[index] = updatedProject
             saveProjects()
-            print("✅ プロジェクト更新: \(updatedProject.name), セグメント数: \(updatedProject.segmentCount)")
+            print("✅ Project updated: \(updatedProject.name), Segments: \(updatedProject.segmentCount)")  // 🔧 英語化
+        }
+    }
+    
+    // 🆕 追加: プロジェクト名変更機能
+    func renameProject(_ project: Project, newName: String) {
+        print("🏷️ Project rename started: \(project.name) → \(newName)")
+        
+        if let index = projects.firstIndex(where: { $0.id == project.id }) {
+            var updatedProject = projects[index]
+            updatedProject.name = newName
+            projects[index] = updatedProject
+            saveProjects()
+            
+            print("✅ Project renamed successfully: \(project.name) → \(newName)")
+        } else {
+            print("❌ Project not found for rename: \(project.name)")
         }
     }
     
     // プロジェクト削除（完全版：データ + 動画ファイル削除）
     func deleteProject(_ project: Project) {
-        print("🗑 プロジェクト削除開始: \(project.name)")
+        print("🗑 Project deletion started: \(project.name)")  // 🔧 英語化
         
         // 1. 動画ファイルを物理削除
         deleteVideoFiles(for: project)
@@ -48,8 +64,8 @@ class ProjectManager: ObservableObject {
         // 3. UserDefaultsに保存
         saveProjects()
         
-        print("✅ プロジェクト削除完了: \(project.name)")
-        print("📊 残りプロジェクト数: \(projects.count)")
+        print("✅ Project deletion completed: \(project.name)")  // 🔧 英語化
+        print("📊 Remaining projects: \(projects.count)")  // 🔧 英語化
     }
     
     // 動画ファイルの物理削除
@@ -58,7 +74,7 @@ class ProjectManager: ObservableObject {
         var deletedCount = 0
         var errorCount = 0
         
-        print("🔍 削除対象セグメント数: \(project.segments.count)")
+        print("🔍 Target segments for deletion: \(project.segments.count)")  // 🔧 英語化
         
         for segment in project.segments {
             let fileURL: URL
@@ -75,17 +91,17 @@ class ProjectManager: ObservableObject {
                 if FileManager.default.fileExists(atPath: fileURL.path) {
                     try FileManager.default.removeItem(at: fileURL)
                     deletedCount += 1
-                    print("🗑 ファイル削除: \(fileURL.lastPathComponent)")
+                    print("🗑 File deleted: \(fileURL.lastPathComponent)")  // 🔧 英語化
                 } else {
-                    print("⚠️ ファイル未発見: \(fileURL.lastPathComponent)")
+                    print("⚠️ File not found: \(fileURL.lastPathComponent)")  // 🔧 英語化
                 }
             } catch {
                 errorCount += 1
-                print("❌ ファイル削除エラー: \(fileURL.lastPathComponent) - \(error)")
+                print("❌ File deletion error: \(fileURL.lastPathComponent) - \(error)")  // 🔧 英語化
             }
         }
         
-        print("📊 ファイル削除結果: 成功 \(deletedCount)件、エラー \(errorCount)件")
+        print("📊 File deletion result: Success \(deletedCount), Errors \(errorCount)")  // 🔧 英語化
     }
     
     // MARK: - データ永続化
@@ -95,24 +111,24 @@ class ProjectManager: ObservableObject {
         do {
             let data = try JSONEncoder().encode(projects)
             userDefaults.set(data, forKey: projectsKey)
-            print("💾 プロジェクト保存成功: \(projects.count)件")
+            print("💾 Projects saved successfully: \(projects.count) items")  // 🔧 英語化
         } catch {
-            print("❌ プロジェクト保存エラー: \(error)")
+            print("❌ Project save error: \(error)")  // 🔧 英語化
         }
     }
     
     // プロジェクト読み込み
     private func loadProjects() {
         guard let data = userDefaults.data(forKey: projectsKey) else {
-            print("📂 保存されたプロジェクトなし")
+            print("📂 No saved projects found")  // 🔧 英語化
             return
         }
         
         do {
             projects = try JSONDecoder().decode([Project].self, from: data)
-            print("📂 プロジェクト読み込み成功: \(projects.count)件")
+            print("📂 Projects loaded successfully: \(projects.count) items")  // 🔧 英語化
         } catch {
-            print("❌ プロジェクト読み込みエラー: \(error)")
+            print("❌ Project load error: \(error)")  // 🔧 英語化
             projects = []
         }
     }
@@ -131,7 +147,7 @@ class ProjectManager: ObservableObject {
     
     // 全プロジェクト削除（開発・テスト用）
     func deleteAllProjects() {
-        print("🗑 全プロジェクト削除開始")
+        print("🗑 All projects deletion started")  // 🔧 英語化
         
         for project in projects {
             deleteVideoFiles(for: project)
@@ -140,6 +156,6 @@ class ProjectManager: ObservableObject {
         projects.removeAll()
         saveProjects()
         
-        print("✅ 全プロジェクト削除完了")
+        print("✅ All projects deletion completed")  // 🔧 英語化
     }
 }

@@ -18,7 +18,8 @@ struct MainView: View {
                         onCreateProject: createNewProject,
                         onOpenProject: openProject,
                         onPlayProject: playProject,
-                        onDeleteProject: deleteProject  // 🔧 追加: 削除機能
+                        onDeleteProject: deleteProject,
+                        onRenameProject: renameProject  // 🆕 追加: 名前変更機能
                     )
                     
                 case .camera:
@@ -90,7 +91,7 @@ struct MainView: View {
         currentSegmentIndex = 0
         isPlaying = false  // 初期状態は停止
         currentScreen = .player
-        print("🎬 プレイヤー画面に遷移: \(project.name)")
+        print("🎬 Player screen transition: \(project.name)")
     }
     
     // 🔧 追加: プロジェクト削除機能
@@ -104,8 +105,23 @@ struct MainView: View {
         // ProjectManagerで削除実行
         projectManager.deleteProject(project)
         
-        print("✅ プロジェクト削除完了: \(project.name)")
-        print("📊 残りプロジェクト数: \(projectManager.projects.count)")
+        print("✅ Project deleted: \(project.name)")
+        print("📊 Remaining projects: \(projectManager.projects.count)")
+    }
+    
+    // 🆕 追加: プロジェクト名変更機能
+    private func renameProject(_ project: Project, _ newName: String) {
+        // 現在選択中のプロジェクトの名前が変更される場合、currentProjectも更新
+        if currentProject?.id == project.id {
+            var updatedCurrentProject = project
+            updatedCurrentProject.name = newName
+            currentProject = updatedCurrentProject
+        }
+        
+        // ProjectManagerで名前変更実行
+        projectManager.renameProject(project, newName: newName)
+        
+        print("✅ Project renamed: \(project.name) → \(newName)")
     }
     
     // MARK: - Recording Handler
@@ -119,7 +135,7 @@ struct MainView: View {
         currentProject = updatedProject
         projectManager.updateProject(updatedProject)
         
-        print("✅ セグメント追加完了: \(updatedProject.name), 総セグメント数: \(updatedProject.segmentCount)")
+        print("✅ Segment added: \(updatedProject.name), Total segments: \(updatedProject.segmentCount)")
     }
 }
 
