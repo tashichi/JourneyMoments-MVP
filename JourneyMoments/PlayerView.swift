@@ -2,8 +2,15 @@ import SwiftUI
 import AVFoundation
 
 struct PlayerView: View {
-    let project: Project
+    @ObservedObject var projectManager: ProjectManager  // 🔧 修正: プロジェクト変更を監視
+    let initialProject: Project  // 🔧 修正: 初期プロジェクト情報
     let onBack: () -> Void
+    let onDeleteSegment: (Project, VideoSegment) -> Void
+    
+    // 🔧 追加: 現在のプロジェクトを動的に取得
+    private var project: Project {
+        return projectManager.projects.first { $0.id == initialProject.id } ?? initialProject
+    }
     
     @State private var player = AVPlayer()
     @State private var currentSegmentIndex = 0
@@ -15,6 +22,10 @@ struct PlayerView: View {
     @State private var currentTime: Double = 0
     @State private var duration: Double = 1.0
     @State private var timeObserver: Any?
+    
+    // 🆕 追加: セグメント削除機能の状態管理
+    @State private var showDeleteSegmentAlert = false
+    @State private var segmentToDelete: VideoSegment?
     
     private var hasSegments: Bool {
         !project.segments.isEmpty
@@ -64,6 +75,22 @@ struct PlayerView: View {
             cleanupPlayer()
         }
         .navigationBarHidden(true)
+        // 🆕 追加: セグメント削除確認アラート
+        .alert("Delete Segment", isPresented: $showDeleteSegmentAlert) {
+            Button("Delete", role: .destructive) {
+                if let segment = segmentToDelete {
+                    handleSegmentDeletion(segment)
+                }
+                resetDeleteState()
+            }
+            Button("Cancel", role: .cancel) {
+                resetDeleteState()
+            }
+        } message: {
+            if let segment = segmentToDelete {
+                Text("Delete Segment \(segment.order)?\nThis action cannot be undone.")
+            }
+        }
     }
     
     // MARK: - Custom Player View
@@ -147,8 +174,8 @@ struct PlayerView: View {
             // メイン再生コントロール
             mainControls
             
-            // セグメント情報
-            segmentInfo
+            // セグメント情報（削除機能付き）
+            segmentInfoWithDelete
         }
         .padding(.bottom, 50)
     }
@@ -224,23 +251,91 @@ struct PlayerView: View {
         }
     }
     
-    // MARK: - Segment Info
-    private var segmentInfo: some View {
-        VStack(spacing: 4) {
+    // 🆕 修正: セグメント情報に削除機能を追加
+    private var segmentInfoWithDelete: some View {
+        VStack(spacing: 8) {
             if let segment = currentSegment {
-                Text("Segment \(segment.order)")
-                    .font(.caption)
-                    .foregroundColor(.yellow)
-                    .fontWeight(.semibold)
+                // セグメント基本情報
+                VStack(spacing: 4) {
+                    Text("Segment \(segment.order)")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                        .fontWeight(.semibold)
+                    
+                    Text(formatDate(segment.timestamp))
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
                 
-                Text(formatDate(segment.timestamp))
-                    .font(.caption2)
-                    .foregroundColor(.gray)
+                // 🆕 削除ボタン（条件付き表示）
+                if project.segments.count > 1 {  // セグメントが2つ以上ある場合のみ表示
+                    Button(action: {
+                        print("🗑️ Delete segment button tapped: Segment \(segment.order)")
+                        segmentToDelete = segment
+                        showDeleteSegmentAlert = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash.fill")
+                                .font(.caption2)
+                            Text("Delete Segment")
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.8))
+                        .foregroundColor(.white)
+                        .cornerRadius(12)
+                    }
+                } else {
+                    // セグメントが1つしかない場合の説明
+                    Text("Cannot delete last segment")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .italic()
+                }
             }
         }
         .padding()
         .background(Color.black.opacity(0.6))
         .cornerRadius(10)
+    }
+    
+    // 🆕 追加: セグメント削除処理関数
+    private func handleSegmentDeletion(_ segment: VideoSegment) {
+        print("🗑️ Starting segment deletion: Segment \(segment.order)")
+        
+        // 1. プレイヤーを停止
+        player.pause()
+        isPlaying = false
+        
+        // 2. 削除処理をメイン画面に委譲
+        onDeleteSegment(project, segment)
+        
+        // 3. 現在のセグメントが削除された場合の処理
+        let deletedIndex = project.segments.firstIndex { $0.id == segment.id } ?? -1
+        
+        if deletedIndex == currentSegmentIndex {
+            // 現在再生中のセグメントが削除された場合
+            if currentSegmentIndex >= project.segments.count - 1 {
+                // 削除後、インデックスが範囲外になる場合は前のセグメントに移動
+                currentSegmentIndex = max(0, project.segments.count - 2)
+            }
+            // 新しいセグメントを読み込み
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.loadCurrentSegment()
+            }
+        } else if deletedIndex < currentSegmentIndex {
+            // 現在より前のセグメントが削除された場合、インデックスを調整
+            currentSegmentIndex -= 1
+        }
+        
+        print("✅ Segment deletion completed")
+    }
+    
+    private func resetDeleteState() {
+        segmentToDelete = nil
+        showDeleteSegmentAlert = false
     }
     
     // MARK: - Functions
@@ -499,8 +594,10 @@ struct VideoPlayerView: UIViewRepresentable {
 struct PlayerView_Previews: PreviewProvider {
     static var previews: some View {
         PlayerView(
-            project: Project(name: "Test Project"),
-            onBack: { }
+            projectManager: ProjectManager(),  // 🔧 修正: ProjectManagerのインスタンスを作成
+            initialProject: Project(name: "Test Project"),
+            onBack: { },
+            onDeleteSegment: { _, _ in }
         )
     }
 }

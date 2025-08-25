@@ -8,7 +8,7 @@ struct VideoSegment: Codable, Identifiable {
     let uri: String
     let timestamp: Date
     let facing: String // "back" or "front" - AVCaptureDevice.Position.rawValueはInt型
-    let order: Int
+    var order: Int
     
     init(id: Int = Int(Date().timeIntervalSince1970 * 1000), uri: String, timestamp: Date = Date(), facing: String, order: Int) {
         self.id = id
