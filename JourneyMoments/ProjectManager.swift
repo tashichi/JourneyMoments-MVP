@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 
 // MARK: - ProjectManager
 // React Native版のプロジェクト管理ロジックと同等
@@ -51,7 +52,7 @@ class ProjectManager: ObservableObject {
         }
     }
     
-    // 🆕 追加: セグメント削除機能
+    // セグメント削除機能
     func deleteSegment(from project: Project, segment: VideoSegment) {
         print("🗑️ Segment deletion started: Project \(project.name), Segment \(segment.order)")
         
@@ -88,6 +89,149 @@ class ProjectManager: ObservableObject {
         print("✅ Segment deleted successfully: \(segment.order)")
         print("📊 Remaining segments in project: \(updatedProject.segments.count)")
         print("🔄 Segment order rebalanced")
+    }
+    
+    // 🆕 追加: AVComposition作成機能（シームレス再生用）
+    func createComposition(for project: Project) async -> AVComposition? {
+        print("🎬 Creating composition for project: \(project.name)")
+        print("📊 Total segments: \(project.segments.count)")
+        
+        let composition = AVMutableComposition()
+        
+        guard !project.segments.isEmpty else {
+            print("❌ No segments to compose")
+            return nil
+        }
+        
+        // 動画トラックと音声トラックを作成
+        guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+              let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            print("❌ Failed to create composition tracks")
+            return nil
+        }
+        
+        var currentTime = CMTime.zero
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        // セグメントを順序通りに処理
+        let sortedSegments = project.segments.sorted { $0.order < $1.order }
+        
+        for (index, segment) in sortedSegments.enumerated() {
+            // ファイルURL構築
+            let fileURL: URL
+            if !segment.uri.hasPrefix("/") {
+                fileURL = documentsPath.appendingPathComponent(segment.uri)
+            } else {
+                fileURL = URL(fileURLWithPath: segment.uri)
+            }
+            
+            // ファイル存在確認
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                print("❌ Segment file not found: \(fileURL.lastPathComponent)")
+                continue
+            }
+            
+            // AVURLAsset作成（iOS 18対応）
+            let asset = AVURLAsset(url: fileURL)
+            
+            do {
+                // 非推奨API対応: loadTracks使用
+                let assetVideoTracks = try await asset.loadTracks(withMediaType: .video)
+                let assetAudioTracks = try await asset.loadTracks(withMediaType: .audio)
+                let assetDuration = try await asset.load(.duration)
+                
+                // 動画トラックを追加
+                if let assetVideoTrack = assetVideoTracks.first {
+                    let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
+                    try videoTrack.insertTimeRange(timeRange, of: assetVideoTrack, at: currentTime)
+                    
+                    // 🔧 追加: 動画の向き補正を適用
+                    if index == 0 {
+                        // 最初のセグメントから向き情報を取得してcomposition全体に適用
+                        let transform = assetVideoTrack.preferredTransform
+                        let naturalSize = assetVideoTrack.naturalSize
+                        
+                        // compositionに向き情報を設定
+                        videoTrack.preferredTransform = transform
+                        
+                        // 向きに応じてcompositionのサイズを調整
+                        let angle = atan2(transform.b, transform.a)
+                        let isRotated = abs(angle) > .pi / 4
+                        
+                        if isRotated {
+                            // 90度または270度回転の場合、幅と高さを入れ替え
+                            composition.naturalSize = CGSize(width: naturalSize.height, height: naturalSize.width)
+                            print("🔄 Composition rotated: \(naturalSize) → \(composition.naturalSize)")
+                        } else {
+                            composition.naturalSize = naturalSize
+                            print("🔄 Composition normal: \(naturalSize)")
+                        }
+                        
+                        print("🔄 Transform applied: \(transform)")
+                    }
+                    
+                    print("✅ Video track added: Segment \(segment.order)")
+                }
+                
+                // 音声トラックを追加
+                if let assetAudioTrack = assetAudioTracks.first {
+                    let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
+                    try audioTrack.insertTimeRange(timeRange, of: assetAudioTrack, at: currentTime)
+                    print("✅ Audio track added: Segment \(segment.order)")
+                }
+                
+                // 次のセグメントの開始時間を更新
+                currentTime = CMTimeAdd(currentTime, assetDuration)
+                print("🔄 Current composition time: \(currentTime.seconds)s")
+                
+            } catch {
+                print("❌ Failed to add segment \(segment.order): \(error)")
+            }
+        }
+        
+        let totalDuration = currentTime.seconds
+        print("🎬 Composition created successfully")
+        print("📊 Total duration: \(totalDuration)s")
+        print("📊 Total segments processed: \(sortedSegments.count)")
+        
+        return composition
+    }
+    
+    // 🆕 追加: セグメント位置計算機能（統合再生用）
+    func getSegmentTimeRanges(for project: Project) async -> [(segment: VideoSegment, timeRange: CMTimeRange)] {
+        var result: [(VideoSegment, CMTimeRange)] = []
+        var currentTime = CMTime.zero
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        let sortedSegments = project.segments.sorted { $0.order < $1.order }
+        
+        for segment in sortedSegments {
+            // ファイルURL構築
+            let fileURL: URL
+            if !segment.uri.hasPrefix("/") {
+                fileURL = documentsPath.appendingPathComponent(segment.uri)
+            } else {
+                fileURL = URL(fileURLWithPath: segment.uri)
+            }
+            
+            // ファイル存在確認
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                continue
+            }
+            
+            do {
+                let asset = AVURLAsset(url: fileURL)
+                let duration = try await asset.load(.duration)
+                let timeRange = CMTimeRange(start: currentTime, duration: duration)
+                
+                result.append((segment, timeRange))
+                currentTime = CMTimeAdd(currentTime, duration)
+            } catch {
+                print("❌ Failed to load duration for segment \(segment.order): \(error)")
+            }
+        }
+        
+        return result
     }
     
     // セグメント用の個別ファイル削除
