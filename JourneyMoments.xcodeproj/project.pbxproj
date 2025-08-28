@@ -29,9 +29,22 @@
 		8D7F03762E4975D30090A622 /* JourneyMomentsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JourneyMomentsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8DE5C48C2E5FE072002E44B9 /* Exceptions for "JourneyMoments" folder in "JourneyMoments" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8D7F035E2E4975D10090A622 /* JourneyMoments */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		8D7F03612E4975D10090A622 /* JourneyMoments */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8DE5C48C2E5FE072002E44B9 /* Exceptions for "JourneyMoments" folder in "JourneyMoments" target */,
+			);
 			path = JourneyMoments;
 			sourceTree = "<group>";
 		};
@@ -400,9 +413,14 @@
 				DEVELOPMENT_TEAM = 9F6VH6V4J9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JourneyMoments/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "1秒動画を撮影するためにカメラを使用します";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "動画の音声を録音するためにマイクを使用します";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save exported videos to your photo library";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access photo library to save exported videos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -431,9 +449,14 @@
 				DEVELOPMENT_TEAM = 9F6VH6V4J9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = JourneyMoments/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "";
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSCameraUsageDescription = "1秒動画を撮影するためにカメラを使用します";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "動画の音声を録音するためにマイクを使用します";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save exported videos to your photo library";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access photo library to save exported videos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -1,5 +1,6 @@
 import SwiftUI
 import AVFoundation
+import Photos
 
 struct PlayerView: View {
     @ObservedObject var projectManager: ProjectManager
@@ -27,10 +28,17 @@ struct PlayerView: View {
     @State private var showDeleteSegmentAlert = false
     @State private var segmentToDelete: VideoSegment?
     
-    // 🆕 追加: シームレス再生機能の状態管理
+    // シームレス再生機能の状態管理
     @State private var useSeamlessPlayback = true  // シームレス再生をデフォルトに
     @State private var composition: AVComposition?
     @State private var segmentTimeRanges: [(segment: VideoSegment, timeRange: CMTimeRange)] = []
+    
+    // エクスポート機能の状態管理
+    @State private var showExportAlert = false
+    @State private var isExporting = false
+    @State private var exportProgress: Float = 0.0
+    @State private var exportError: String?
+    @State private var showExportSuccess = false
     
     private var hasSegments: Bool {
         !project.segments.isEmpty
@@ -72,7 +80,7 @@ struct PlayerView: View {
         }
         .onAppear {
             setupPlayer()
-            print("🎬 PlayerView display started")
+            print("PlayerView display started")
         }
         .onDisappear {
             cleanupPlayer()
@@ -92,6 +100,20 @@ struct PlayerView: View {
             if let segment = segmentToDelete {
                 Text("Delete Segment \(segment.order)?\nThis action cannot be undone.")
             }
+        }
+        .alert("Export Status", isPresented: $showExportAlert) {
+            Button("OK") {
+                exportError = nil
+            }
+        } message: {
+            if let error = exportError {
+                Text("Export failed: \(error)")
+            }
+        }
+        .alert("Export Successful", isPresented: $showExportSuccess) {
+            Button("OK") { }
+        } message: {
+            Text("Video has been saved to your photo library!")
         }
     }
     
@@ -125,7 +147,7 @@ struct PlayerView: View {
         VStack(spacing: 10) {
             HStack {
                 Button(action: {
-                    print("🔙 Back button tapped")
+                    print("Back button tapped")
                     onBack()
                 }) {
                     HStack(spacing: 4) {
@@ -141,7 +163,7 @@ struct PlayerView: View {
                 
                 Spacer()
                 
-                // 🆕 追加: 再生モード表示
+                // 再生モード表示
                 HStack(spacing: 8) {
                     Text(useSeamlessPlayback ? "Seamless" : "Individual")
                         .font(.caption2)
@@ -177,9 +199,21 @@ struct PlayerView: View {
     
     // MARK: - Playback Controls
     private var playbackControls: some View {
-        VStack(spacing: 30) {
+        VStack(spacing: 20) {
             progressView
+            
+            // エクスポート進捗表示（エクスポート中のみ）
+            if isExporting {
+                exportProgressView
+            }
+            
             mainControls
+            
+            // エクスポートボタンを追加
+            if hasSegments && !isExporting {
+                exportButton
+            }
+            
             segmentInfoWithDelete
         }
         .padding(.bottom, 50)
@@ -209,12 +243,63 @@ struct PlayerView: View {
         .padding(.horizontal, 40)
     }
     
+    // MARK: - Export Progress View
+    private var exportProgressView: some View {
+        VStack(spacing: 8) {
+            HStack {
+                Text("Exporting...")
+                    .foregroundColor(.white)
+                    .font(.caption)
+                
+                Spacer()
+                
+                Text("\(Int(exportProgress * 100))%")
+                    .foregroundColor(.white)
+                    .font(.caption)
+                    .monospacedDigit()
+            }
+            
+            ProgressView(value: exportProgress)
+                .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                .scaleEffect(y: 2)
+        }
+        .padding(.horizontal, 40)
+        .padding(.vertical, 12)
+        .background(Color.black.opacity(0.8))
+        .cornerRadius(10)
+    }
+    
+    // MARK: - Export Button
+    private var exportButton: some View {
+        Button(action: {
+            print("Export button tapped")
+            requestPhotoLibraryPermission()
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: isExporting ? "arrow.down.circle" : "square.and.arrow.up")
+                    .font(.title3)
+                Text(isExporting ? "Exporting..." : "Export Video")
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(
+                isExporting ? Color.orange.opacity(0.8) : Color.blue.opacity(0.8)
+            )
+            .foregroundColor(.white)
+            .cornerRadius(12)
+            .disabled(isExporting || !hasSegments)
+        }
+        .opacity(hasSegments ? 1.0 : 0.6)
+    }
+    
     // MARK: - Main Controls
     private var mainControls: some View {
         HStack(spacing: 40) {
             // 前のセグメント
             Button(action: {
-                print("🔙 Previous segment button tapped")
+                print("Previous segment button tapped")
                 previousSegment()
             }) {
                 Image(systemName: "backward.fill")
@@ -228,7 +313,7 @@ struct PlayerView: View {
             
             // 再生/停止
             Button(action: {
-                print("⏯️ Play/Pause button tapped")
+                print("Play/Pause button tapped")
                 togglePlayback()
             }) {
                 Image(systemName: isPlaying ? "pause.circle.fill" : "play.circle.fill")
@@ -240,7 +325,7 @@ struct PlayerView: View {
             
             // 次のセグメント
             Button(action: {
-                print("🔜 Next segment button tapped")
+                print("Next segment button tapped")
                 nextSegment()
             }) {
                 Image(systemName: "forward.fill")
@@ -271,7 +356,7 @@ struct PlayerView: View {
                 
                 if project.segments.count > 1 {
                     Button(action: {
-                        print("🗑️ Delete segment button tapped: Segment \(segment.order)")
+                        print("Delete segment button tapped: Segment \(segment.order)")
                         segmentToDelete = segment
                         showDeleteSegmentAlert = true
                     }) {
@@ -301,10 +386,188 @@ struct PlayerView: View {
         .cornerRadius(10)
     }
     
+    // MARK: - Export Functions
+    
+    // 写真ライブラリアクセス権限をリクエスト
+    private func requestPhotoLibraryPermission() {
+        let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+        
+        switch status {
+        case .authorized:
+            startExport()
+        case .notDetermined:
+            PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
+                DispatchQueue.main.async {
+                    if newStatus == .authorized {
+                        self.startExport()
+                    } else {
+                        self.showExportAlert = true
+                        self.exportError = "Photo library access denied"
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showExportAlert = true
+            exportError = "Photo library access denied. Please enable in Settings."
+        case .limited:
+            startExport() // limited access でも保存は可能
+        @unknown default:
+            showExportAlert = true
+            exportError = "Unknown authorization status"
+        }
+    }
+    
+    // エクスポート処理を開始
+    private func startExport() {
+        print("Starting export process")
+        
+        // エクスポート中の状態に設定
+        isExporting = true
+        exportProgress = 0.0
+        exportError = nil
+        
+        Task {
+            do {
+                let success = await exportVideo()
+                
+                await MainActor.run {
+                    self.isExporting = false
+                    
+                    if success {
+                        self.showExportSuccess = true
+                        print("Export completed successfully")
+                    } else {
+                        self.showExportAlert = true
+                        self.exportError = "Export failed"
+                        print("Export failed")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.isExporting = false
+                    self.showExportAlert = true
+                    self.exportError = error.localizedDescription
+                    print("Export error: \(error)")
+                }
+            }
+        }
+    }
+    
+    // 実際の動画エクスポート処理
+    private func exportVideo() async -> Bool {
+        print("Creating composition for export")
+        
+        // 既存のcompositionを使用するか、新規作成
+        var exportComposition: AVComposition
+        
+        if let existingComposition = composition {
+            exportComposition = existingComposition
+            print("Using existing composition")
+        } else {
+            guard let newComposition = await projectManager.createComposition(for: project) else {
+                print("Failed to create composition for export")
+                return false
+            }
+            exportComposition = newComposition
+            print("Created new composition for export")
+        }
+        
+        // 出力ファイルのURL作成
+        let outputURL = createExportURL()
+        
+        // 既存ファイルがあれば削除
+        if FileManager.default.fileExists(atPath: outputURL.path) {
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+        
+        // AVAssetExportSession作成
+        guard let exportSession = AVAssetExportSession(
+            asset: exportComposition,
+            presetName: AVAssetExportPresetHighestQuality
+        ) else {
+            print("Failed to create export session")
+            return false
+        }
+        
+        // エクスポート設定
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = .mp4
+        exportSession.shouldOptimizeForNetworkUse = true
+        
+        print("Export settings:")
+        print("   Output URL: \(outputURL.lastPathComponent)")
+        print("   Preset: \(AVAssetExportPresetHighestQuality)")
+        print("   File Type: MP4")
+        
+        // 進捗監視を開始
+        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+            DispatchQueue.main.async {
+                self.exportProgress = exportSession.progress
+            }
+        }
+        
+        // エクスポート実行
+        await withCheckedContinuation { continuation in
+            exportSession.exportAsynchronously {
+                DispatchQueue.main.async {
+                    progressTimer.invalidate()
+                    self.exportProgress = 1.0
+                }
+                continuation.resume()
+            }
+        }
+        
+        // エクスポート結果の確認
+        switch exportSession.status {
+        case .completed:
+            print("Export session completed")
+            return await saveToPhotoLibrary(url: outputURL)
+        case .failed:
+            print("Export session failed: \(exportSession.error?.localizedDescription ?? "Unknown error")")
+            return false
+        case .cancelled:
+            print("Export session cancelled")
+            return false
+        default:
+            print("Export session unknown status: \(exportSession.status)")
+            return false
+        }
+    }
+    
+    // エクスポートファイルのURL生成
+    private func createExportURL() -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let timestamp = DateFormatter().apply {
+            $0.dateFormat = "yyyyMMdd_HHmmss"
+        }.string(from: Date())
+        
+        let filename = "\(project.name.replacingOccurrences(of: " ", with: "_"))_\(timestamp).mp4"
+        return documentsPath.appendingPathComponent(filename)
+    }
+    
+    // 写真ライブラリに保存
+    private func saveToPhotoLibrary(url: URL) async -> Bool {
+        return await withCheckedContinuation { continuation in
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
+            }) { success, error in
+                if success {
+                    print("Video saved to photo library: \(url.lastPathComponent)")
+                    // 一時ファイルを削除
+                    try? FileManager.default.removeItem(at: url)
+                    continuation.resume(returning: true)
+                } else {
+                    print("Failed to save to photo library: \(error?.localizedDescription ?? "Unknown error")")
+                    continuation.resume(returning: false)
+                }
+            }
+        }
+    }
+    
     // MARK: - Player Setup Functions
     
     private func setupPlayer() {
-        print("🎬 PlayerView setup started - Mode: \(useSeamlessPlayback ? "Seamless" : "Individual")")
+        print("PlayerView setup started - Mode: \(useSeamlessPlayback ? "Seamless" : "Individual")")
         
         if useSeamlessPlayback {
             loadComposition()
@@ -313,13 +576,13 @@ struct PlayerView: View {
         }
     }
     
-    // 🆕 追加: AVComposition統合再生の設定
+    // AVComposition統合再生の設定
     private func loadComposition() {
-        print("🎬 Loading composition for seamless playback")
+        print("Loading composition for seamless playback")
         
         Task {
             guard let newComposition = await projectManager.createComposition(for: project) else {
-                print("❌ Failed to create composition")
+                print("Failed to create composition")
                 // フォールバックとして個別再生に切り替え
                 useSeamlessPlayback = false
                 loadCurrentSegment()
@@ -344,7 +607,7 @@ struct PlayerView: View {
                     object: newPlayerItem,
                     queue: .main
                 ) { _ in
-                    print("🔔 Composition playback completed")
+                    print("Composition playback completed")
                     self.handleCompositionEnd()
                 }
                 
@@ -358,9 +621,9 @@ struct PlayerView: View {
                 currentTime = 0
                 duration = newComposition.duration.seconds
                 
-                print("✅ Composition loaded successfully")
-                print("📊 Total composition duration: \(duration)s")
-                print("📊 Segment time ranges: \(segmentTimeRanges.count)")
+                print("Composition loaded successfully")
+                print("Total composition duration: \(duration)s")
+                print("Segment time ranges: \(segmentTimeRanges.count)")
                 
                 // 時間監視開始
                 startTimeObserver()
@@ -371,7 +634,7 @@ struct PlayerView: View {
         }
     }
     
-    // 🆕 追加: 統合再生の現在セグメント更新
+    // 統合再生の現在セグメント更新
     private func updateCurrentSegmentIndex() {
         let currentPlayerTime = player.currentTime()
         
@@ -379,26 +642,26 @@ struct PlayerView: View {
             if CMTimeRangeContainsTime(timeRange, time: currentPlayerTime) {
                 if currentSegmentIndex != index {
                     currentSegmentIndex = index
-                    print("🔄 Current segment updated to: \(index + 1)")
+                    print("Current segment updated to: \(index + 1)")
                 }
                 break
             }
         }
     }
     
-    // 🆕 追加: 統合再生終了処理
+    // 統合再生終了処理
     private func handleCompositionEnd() {
-        print("🏁 Composition playback completed - Returning to start")
+        print("Composition playback completed - Returning to start")
         player.seek(to: .zero)
         currentSegmentIndex = 0
         isPlaying = false
-        print("⏹️ Stopped - Press play button to replay")
+        print("Stopped - Press play button to replay")
     }
     
     // 既存の個別セグメント再生（互換性維持）
     private func loadCurrentSegment() {
         guard let segment = currentSegment else {
-            print("❌ No segment to play")
+            print("No segment to play")
             return
         }
         
@@ -415,7 +678,7 @@ struct PlayerView: View {
         }
         
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
-            print("❌ File not found: \(fileURL.path)")
+            print("File not found: \(fileURL.path)")
             return
         }
         
@@ -426,7 +689,7 @@ struct PlayerView: View {
             object: newPlayerItem,
             queue: .main
         ) { _ in
-            print("🔔 Segment playback completed - Segment \(self.currentSegmentIndex + 1)")
+            print("Segment playback completed - Segment \(self.currentSegmentIndex + 1)")
             self.handleSegmentEnd()
         }
         
@@ -437,19 +700,19 @@ struct PlayerView: View {
         isPlaying = false
         currentTime = 0
         
-        print("✅ Segment loaded: \(segment.order), File: \(fileURL.lastPathComponent)")
+        print("Segment loaded: \(segment.order), File: \(fileURL.lastPathComponent)")
         
         startTimeObserver()
     }
     
     // 既存の個別セグメント終了処理
     private func handleSegmentEnd() {
-        print("🔔 Segment playback ended - Current: \(currentSegmentIndex + 1)/\(project.segments.count)")
+        print("Segment playback ended - Current: \(currentSegmentIndex + 1)/\(project.segments.count)")
         
         if currentSegmentIndex < project.segments.count - 1 {
-            print("🔄 Auto advancing to next segment")
+            print("Auto advancing to next segment")
             let nextIndex = currentSegmentIndex + 1
-            print("🔄 Advancing to: Segment \(nextIndex + 1)")
+            print("Advancing to: Segment \(nextIndex + 1)")
             
             currentSegmentIndex = nextIndex
             loadCurrentSegment()
@@ -457,17 +720,17 @@ struct PlayerView: View {
             isPlaying = true
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                print("🔄 Auto playback executing: Segment \(self.currentSegmentIndex + 1)")
+                print("Auto playback executing: Segment \(self.currentSegmentIndex + 1)")
                 self.player.play()
-                print("▶️ Auto playback continued")
+                print("Auto playback continued")
             }
         } else {
-            print("🏁 All segments completed - Returning to first segment")
+            print("All segments completed - Returning to first segment")
             currentSegmentIndex = 0
             loadCurrentSegment()
             isPlaying = false
-            print("🔄 Returned to first segment (1st)")
-            print("⏹️ Stopped - Press play button to replay")
+            print("Returned to first segment (1st)")
+            print("Stopped - Press play button to replay")
         }
     }
     
@@ -477,11 +740,11 @@ struct PlayerView: View {
         if isPlaying {
             player.pause()
             isPlaying = false
-            print("⏸️ Playback paused")
+            print("Playback paused")
         } else {
             player.play()
             isPlaying = true
-            print("▶️ Playback started")
+            print("Playback started")
         }
     }
     
@@ -489,7 +752,7 @@ struct PlayerView: View {
         if useSeamlessPlayback {
             // 統合再生時のセグメント移動
             guard currentSegmentIndex > 0 else {
-                print("❌ No previous segment available")
+                print("No previous segment available")
                 return
             }
             
@@ -497,12 +760,12 @@ struct PlayerView: View {
             if currentSegmentIndex < segmentTimeRanges.count {
                 let targetTime = segmentTimeRanges[currentSegmentIndex].timeRange.start
                 player.seek(to: targetTime)
-                print("⏮️ Seamless: Previous segment: \(currentSegmentIndex + 1)")
+                print("Seamless: Previous segment: \(currentSegmentIndex + 1)")
             }
         } else {
             // 個別再生時のセグメント移動
             guard currentSegmentIndex > 0 else {
-                print("❌ No previous segment available")
+                print("No previous segment available")
                 return
             }
             
@@ -514,7 +777,7 @@ struct PlayerView: View {
                     self.player.play()
                 }
             }
-            print("⏮️ Individual: Previous segment: \(currentSegmentIndex + 1)")
+            print("Individual: Previous segment: \(currentSegmentIndex + 1)")
         }
     }
     
@@ -522,7 +785,7 @@ struct PlayerView: View {
         if useSeamlessPlayback {
             // 統合再生時のセグメント移動
             guard currentSegmentIndex < project.segments.count - 1 else {
-                print("❌ No next segment available")
+                print("No next segment available")
                 return
             }
             
@@ -530,12 +793,12 @@ struct PlayerView: View {
             if currentSegmentIndex < segmentTimeRanges.count {
                 let targetTime = segmentTimeRanges[currentSegmentIndex].timeRange.start
                 player.seek(to: targetTime)
-                print("⏭️ Seamless: Next segment: \(currentSegmentIndex + 1)")
+                print("Seamless: Next segment: \(currentSegmentIndex + 1)")
             }
         } else {
             // 個別再生時のセグメント移動
             guard currentSegmentIndex < project.segments.count - 1 else {
-                print("❌ No next segment available")
+                print("No next segment available")
                 return
             }
             
@@ -547,21 +810,21 @@ struct PlayerView: View {
                     self.player.play()
                 }
             }
-            print("⏭️ Individual: Next segment: \(currentSegmentIndex + 1)")
+            print("Individual: Next segment: \(currentSegmentIndex + 1)")
         }
     }
     
     // MARK: - Segment Deletion
     
     private func handleSegmentDeletion(_ segment: VideoSegment) {
-        print("🗑️ Starting segment deletion: Segment \(segment.order)")
+        print("Starting segment deletion: Segment \(segment.order)")
         
         // 削除前の再生モードを記録
         let wasSeamless = useSeamlessPlayback
         
         // 統合再生中の場合は個別再生に切り替え
         if useSeamlessPlayback {
-            print("🔄 Switching to individual playback for deletion")
+            print("Switching to individual playback for deletion")
             useSeamlessPlayback = false
             player.pause()
             isPlaying = false
@@ -577,35 +840,35 @@ struct PlayerView: View {
         // 削除後の処理 - プロジェクトが更新されるまで少し待つ
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             let updatedSegmentCount = self.project.segments.count
-            print("🔍 Segment count: \(segmentCountBeforeDeletion) → \(updatedSegmentCount)")
+            print("Segment count: \(segmentCountBeforeDeletion) → \(updatedSegmentCount)")
             
             // セグメント削除が成功した場合のみインデックス調整
             guard updatedSegmentCount < segmentCountBeforeDeletion else {
-                print("❌ Segment deletion may have failed")
+                print("Segment deletion may have failed")
                 return
             }
             
             // インデックスの安全な調整
             if updatedSegmentCount == 0 {
-                print("📭 No segments remaining")
+                print("No segments remaining")
                 return
             }
             
             // 現在のインデックスが範囲外になった場合の調整
             if self.currentSegmentIndex >= updatedSegmentCount {
                 self.currentSegmentIndex = max(0, updatedSegmentCount - 1)
-                print("🔄 Current index adjusted: \(currentIndexBeforeDeletion) → \(self.currentSegmentIndex)")
+                print("Current index adjusted: \(currentIndexBeforeDeletion) → \(self.currentSegmentIndex)")
             }
             
             // セグメント再読み込み
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                print("🔄 Reloading segment after deletion")
+                print("Reloading segment after deletion")
                 self.loadCurrentSegment()
                 
                 // 元がシームレス再生だった場合、削除完了後にシームレス再生に復帰
                 if wasSeamless && updatedSegmentCount > 1 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        print("🔄 Returning to seamless playback after deletion")
+                        print("Returning to seamless playback after deletion")
                         self.useSeamlessPlayback = true
                         self.loadComposition()
                     }
@@ -613,7 +876,7 @@ struct PlayerView: View {
             }
         }
         
-        print("✅ Segment deletion completed")
+        print("Segment deletion completed")
     }
     
     private func resetDeleteState() {
@@ -663,7 +926,7 @@ struct PlayerView: View {
         player.replaceCurrentItem(with: nil)
         composition = nil
         segmentTimeRanges = []
-        print("🧹 PlayerView cleanup completed")
+        print("PlayerView cleanup completed")
     }
     
     // MARK: - Helper Functions
@@ -682,6 +945,14 @@ struct PlayerView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd HH:mm"
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - DateFormatter Extension
+extension DateFormatter {
+    func apply(_ closure: (DateFormatter) -> Void) -> DateFormatter {
+        closure(self)
+        return self
     }
 }
 
