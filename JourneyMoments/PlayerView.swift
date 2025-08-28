@@ -28,7 +28,7 @@ struct PlayerView: View {
     @State private var segmentToDelete: VideoSegment?
     
     // 🆕 追加: シームレス再生機能の状態管理
-    @State private var useSeamlessPlayback = true  // 初期は既存方式
+    @State private var useSeamlessPlayback = true  // シームレス再生をデフォルトに
     @State private var composition: AVComposition?
     @State private var segmentTimeRanges: [(segment: VideoSegment, timeRange: CMTimeRange)] = []
     
@@ -556,6 +556,9 @@ struct PlayerView: View {
     private func handleSegmentDeletion(_ segment: VideoSegment) {
         print("🗑️ Starting segment deletion: Segment \(segment.order)")
         
+        // 削除前の再生モードを記録
+        let wasSeamless = useSeamlessPlayback
+        
         // 統合再生中の場合は個別再生に切り替え
         if useSeamlessPlayback {
             print("🔄 Switching to individual playback for deletion")
@@ -584,7 +587,6 @@ struct PlayerView: View {
             
             // インデックスの安全な調整
             if updatedSegmentCount == 0 {
-                // 全セグメントが削除された場合（通常は起こらないはず）
                 print("📭 No segments remaining")
                 return
             }
@@ -599,6 +601,15 @@ struct PlayerView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                 print("🔄 Reloading segment after deletion")
                 self.loadCurrentSegment()
+                
+                // 元がシームレス再生だった場合、削除完了後にシームレス再生に復帰
+                if wasSeamless && updatedSegmentCount > 1 {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        print("🔄 Returning to seamless playback after deletion")
+                        self.useSeamlessPlayback = true
+                        self.loadComposition()
+                    }
+                }
             }
         }
         
