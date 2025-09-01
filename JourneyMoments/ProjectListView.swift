@@ -78,7 +78,7 @@ struct ProjectListView: View {
     // MARK: - ヘッダー
     private var headerView: some View {
         VStack(spacing: 10) {
-            Text("JourneyMoments")
+            Text("ClipFlow")
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.white)
