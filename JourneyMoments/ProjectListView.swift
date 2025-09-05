@@ -6,12 +6,12 @@ struct ProjectListView: View {
     let onOpenProject: (Project) -> Void
     let onPlayProject: (Project) -> Void
     let onDeleteProject: (Project) -> Void
-    let onRenameProject: (Project, String) -> Void  // 🆕 追加: 名前変更用コールバック
+    let onRenameProject: (Project, String) -> Void
     
     @State private var showDeleteAlert = false
     @State private var projectToDelete: Project?
     
-    // 🆕 追加: 名前変更機能の状態管理
+    // 名前変更機能の状態管理
     @State private var showRenameAlert = false
     @State private var projectToRename: Project?
     @State private var newProjectName: String = ""
@@ -50,7 +50,7 @@ struct ProjectListView: View {
                 Text("Delete \"\(project.name)\"?\nThis action cannot be undone.")
             }
         }
-        // 🆕 追加: 名前変更アラート
+        // 名前変更アラート
         .alert("Rename Project", isPresented: $showRenameAlert) {
             TextField("Project Name", text: $newProjectName)
                 .textInputAutocapitalization(.words)
@@ -125,14 +125,14 @@ struct ProjectListView: View {
         .padding(.horizontal, 40)
     }
     
-    // 🔧 修正: プロジェクト一覧（名前変更機能追加）
+    // プロジェクト一覧
     private var projectListView: some View {
         List {
             ForEach(projects) { project in
                 VStack(alignment: .leading, spacing: 12) {
-                    // 🆕 修正: プロジェクト情報（名前タップで編集可能）
+                    // プロジェクト情報（名前タップで編集可能）
                     VStack(alignment: .leading, spacing: 4) {
-                        // 🆕 プロジェクト名をタップ可能にする
+                        // プロジェクト名をタップ可能にする
                         Button(action: {
                             print("🏷️ Project name tapped: \(project.name)")
                             startRenamingProject(project)
@@ -143,7 +143,7 @@ struct ProjectListView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                 
-                                // 🆕 編集アイコン表示
+                                // 編集アイコン表示
                                 Image(systemName: "pencil")
                                     .font(.caption)
                                     .foregroundColor(.gray)
@@ -171,7 +171,7 @@ struct ProjectListView: View {
                         }
                     }
                     
-                    // ボタン群（既存のまま）
+                    // ボタン群
                     HStack(spacing: 12) {
                         // 撮影ボタン
                         Button {
@@ -227,14 +227,8 @@ struct ProjectListView: View {
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
+                // 🔧 修正: スワイプアクションを削除のみに変更
                 .swipeActions(edge: .trailing) {
-                    // 🆕 追加: 名前変更アクション
-                    Button("Rename") {
-                        print("🏷️ Rename action: \(project.name)")
-                        startRenamingProject(project)
-                    }
-                    .tint(.orange)
-                    
                     Button("Delete") {
                         print("🔍 Delete target: \(project.name)")
                         projectToDelete = project
@@ -249,7 +243,7 @@ struct ProjectListView: View {
         .listStyle(PlainListStyle())
     }
     
-    // 🆕 追加: 名前変更関連の関数
+    // 名前変更関連の関数
     private func startRenamingProject(_ project: Project) {
         projectToRename = project
         newProjectName = project.name  // 現在の名前を初期値として設定
@@ -262,7 +256,7 @@ struct ProjectListView: View {
         showRenameAlert = false
     }
 
-    // formatDate関数（既存のまま）
+    // formatDate関数
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd"
@@ -373,7 +367,7 @@ struct ProjectListView_Previews: PreviewProvider {
             onOpenProject: { _ in },
             onPlayProject: { _ in },
             onDeleteProject: { _ in },
-            onRenameProject: { _, _ in }  // 🆕 追加
+            onRenameProject: { _, _ in }
         )
     }
 }
