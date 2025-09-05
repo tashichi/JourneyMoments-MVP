@@ -209,10 +209,7 @@ struct PlayerView: View {
             
             mainControls
             
-            // エクスポートボタンを追加
-            if hasSegments && !isExporting {
-                exportButton
-            }
+           
             
             segmentInfoWithDelete
         }

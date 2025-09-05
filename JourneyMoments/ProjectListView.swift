@@ -1,4 +1,5 @@
 import SwiftUI
+import Photos
 
 struct ProjectListView: View {
     let projects: [Project]
@@ -7,6 +8,7 @@ struct ProjectListView: View {
     let onPlayProject: (Project) -> Void
     let onDeleteProject: (Project) -> Void
     let onRenameProject: (Project, String) -> Void
+    let onExportProject: (Project) -> Void
     
     @State private var showDeleteAlert = false
     @State private var projectToDelete: Project?
@@ -15,6 +17,9 @@ struct ProjectListView: View {
     @State private var showRenameAlert = false
     @State private var projectToRename: Project?
     @State private var newProjectName: String = ""
+    
+    // エクスポート状態管理
+    @State private var exportingProjects: Set<Int> = []
     
     var body: some View {
         ZStack {
@@ -125,7 +130,7 @@ struct ProjectListView: View {
         .padding(.horizontal, 40)
     }
     
-    // プロジェクト一覧
+    // 🔧 修正: プロジェクト一覧（ボタンサイズ統一）
     private var projectListView: some View {
         List {
             ForEach(projects) { project in
@@ -171,23 +176,23 @@ struct ProjectListView: View {
                         }
                     }
                     
-                    // ボタン群
+                    // 🔧 修正: ボタン群（統一サイズ、短縮テキスト）
                     HStack(spacing: 12) {
                         // 撮影ボタン
                         Button {
-                            print("🔵 Record button tapped: \(project.name)")
+                            print("🔴 Record button tapped: \(project.name)")
                             onOpenProject(project)
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "camera.fill")
                                     .font(.caption)
-                                Text("Record")
+                                Text("Rec")
                                     .font(.caption)
                                     .fontWeight(.medium)
                             }
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
-                            .background(Color.blue)
+                            .background(Color.red)
                             .foregroundColor(.white)
                             .cornerRadius(15)
                         }
@@ -196,7 +201,7 @@ struct ProjectListView: View {
                         // 再生ボタン（セグメントがある場合のみ）
                         if project.segmentCount > 0 {
                             Button {
-                                print("🔴 Play button tapped: \(project.name)")
+                                print("🔵 Play button tapped: \(project.name)")
                                 onPlayProject(project)
                             } label: {
                                 HStack(spacing: 6) {
@@ -208,11 +213,40 @@ struct ProjectListView: View {
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 8)
-                                .background(Color.red)
+                                .background(Color.blue)
                                 .foregroundColor(.white)
                                 .cornerRadius(15)
                             }
                             .buttonStyle(PlainButtonStyle())
+                        }
+                        
+                        // エクスポートボタン（セグメントがある場合のみ）
+                        if project.segmentCount > 0 {
+                            Button {
+                                print("🟠 Export button tapped: \(project.name)")
+                                handleExportProject(project)
+                            } label: {
+                                HStack(spacing: 6) {
+                                    if exportingProjects.contains(project.id) {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .font(.caption)
+                                        Text("Export")
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(exportingProjects.contains(project.id) ? Color.orange.opacity(0.7) : Color.orange)
+                                .foregroundColor(.white)
+                                .cornerRadius(15)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .disabled(exportingProjects.contains(project.id))
                         }
                         
                         Spacer()
@@ -227,7 +261,7 @@ struct ProjectListView: View {
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                // 🔧 修正: スワイプアクションを削除のみに変更
+                // スワイプアクション（削除のみ）
                 .swipeActions(edge: .trailing) {
                     Button("Delete") {
                         print("🔍 Delete target: \(project.name)")
@@ -241,6 +275,24 @@ struct ProjectListView: View {
         .background(Color.black)
         .scrollContentBackground(.hidden)
         .listStyle(PlainListStyle())
+    }
+    
+    // エクスポート処理
+    private func handleExportProject(_ project: Project) {
+        // エクスポート中状態に設定
+        exportingProjects.insert(project.id)
+        
+        // エクスポート完了時の処理
+        Task {
+            // エクスポート処理を実行（メイン画面に委譲）
+            onExportProject(project)
+            
+            // 2秒後にエクスポート中状態を解除（実際の完了は別途処理）
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            await MainActor.run {
+                exportingProjects.remove(project.id)
+            }
+        }
     }
     
     // 名前変更関連の関数
@@ -300,35 +352,33 @@ struct ProjectRowView: View {
             HStack(spacing: 12) {
                 // 撮影ボタン
                 Button(action: onOpen) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Image(systemName: "camera.fill")
-                            .font(.caption)
-                        Text("Record")
-                            .font(.caption)
+                            .font(.caption2)
+                        Text("Rec")
+                            .font(.caption2)
                             .fontWeight(.medium)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.blue)
+                    .frame(width: 60, height: 32)
+                    .background(Color.red)
                     .foregroundColor(.white)
-                    .cornerRadius(15)
+                    .cornerRadius(12)
                 }
                 
                 // 再生ボタン（セグメントがある場合のみ）
                 if project.segmentCount > 0 {
                     Button(action: onPlay) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: 4) {
                             Image(systemName: "play.fill")
-                                .font(.caption)
+                                .font(.caption2)
                             Text("Play")
-                                .font(.caption)
+                                .font(.caption2)
                                 .fontWeight(.medium)
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.red)
+                        .frame(width: 60, height: 32)
+                        .background(Color.blue)
                         .foregroundColor(.white)
-                        .cornerRadius(15)
+                        .cornerRadius(12)
                     }
                 }
                 
@@ -367,7 +417,8 @@ struct ProjectListView_Previews: PreviewProvider {
             onOpenProject: { _ in },
             onPlayProject: { _ in },
             onDeleteProject: { _ in },
-            onRenameProject: { _, _ in }
+            onRenameProject: { _, _ in },
+            onExportProject: { _ in }
         )
     }
 }
