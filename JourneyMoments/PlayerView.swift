@@ -165,13 +165,7 @@ struct PlayerView: View {
                 
                 // 再生モード表示
                 HStack(spacing: 8) {
-                    Text(useSeamlessPlayback ? "Seamless" : "Individual")
-                        .font(.caption2)
-                        .foregroundColor(useSeamlessPlayback ? .green : .yellow)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(6)
+                    
                     
                     if hasSegments {
                         Text("\(currentSegmentIndex + 1) / \(project.segments.count)")
