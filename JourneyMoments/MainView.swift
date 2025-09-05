@@ -316,7 +316,19 @@ struct MainView: View {
             $0.dateFormat = "yyyyMMdd_HHmmss"
         }.string(from: Date())
         
-        let filename = "\(project.name.replacingOccurrences(of: " ", with: "_"))_\(timestamp).mp4"
+        // 🔧 修正: ファイル名に使用できない文字を除去
+        let safeName = project.name
+            .replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "?", with: "")
+            .replacingOccurrences(of: "<", with: "")
+            .replacingOccurrences(of: ">", with: "")
+            .replacingOccurrences(of: "|", with: "")
+            .replacingOccurrences(of: "*", with: "")
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: " ", with: "_")
+        
+        let filename = "\(safeName)_\(timestamp).mp4"
         return documentsPath.appendingPathComponent(filename)
     }
     
