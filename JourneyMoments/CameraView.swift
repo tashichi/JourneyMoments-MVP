@@ -151,7 +151,7 @@ struct CameraView: View {
                                     .stroke(Color.red, lineWidth: 6)
                             )
                         
-                        Text(isRecording ? "Recording" : "Tap to Record")
+                        Text(isRecording ? "Recording" : "REC")
                             .font(isRecording ? .caption : .body)
                             .fontWeight(.bold)
                             .foregroundColor(isRecording ? .white : .black)
