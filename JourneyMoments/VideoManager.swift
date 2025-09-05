@@ -15,13 +15,14 @@ class VideoManager: NSObject, ObservableObject {
     // MARK: - Properties
     private var captureSession: AVCaptureSession?
     private var videoDeviceInput: AVCaptureDeviceInput?
-    private var audioDeviceInput: AVCaptureDeviceInput?  // 🔧 追加: 音声入力
+    private var audioDeviceInput: AVCaptureDeviceInput?
     private var movieOutput: AVCaptureMovieFileOutput?
     
     @Published var currentCameraPosition: AVCaptureDevice.Position = .back
     @Published var isSessionRunning = false
     @Published var cameraPermissionGranted = false
-    @Published var microphonePermissionGranted = false  // 🔧 追加: マイク権限
+    @Published var microphonePermissionGranted = false
+    @Published var isSetupComplete = false  // 🔧 追加: セットアップ完了状態
     
     var previewLayer: AVCaptureVideoPreviewLayer?
     
@@ -42,7 +43,6 @@ class VideoManager: NSObject, ObservableObject {
         }
     }
     
-    // 🔧 追加: マイク権限リクエスト
     func requestMicrophonePermission() async {
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
         
@@ -59,16 +59,21 @@ class VideoManager: NSObject, ObservableObject {
     // MARK: - Camera Setup
     
     func setupCamera() async {
+        print("🔧 setupCamera() 開始")
+        
         guard cameraPermissionGranted else {
             print("❌ カメラ権限が許可されていません")
             return
         }
         
-        // 🔧 追加: マイク権限もリクエスト
+        // マイク権限もリクエスト
         await requestMicrophonePermission()
         
         captureSession = AVCaptureSession()
-        guard let captureSession = captureSession else { return }
+        guard let captureSession = captureSession else {
+            print("❌ CaptureSession作成失敗")
+            return
+        }
         
         captureSession.beginConfiguration()
         
@@ -80,7 +85,7 @@ class VideoManager: NSObject, ObservableObject {
         // カメラデバイス設定
         await setupCameraDevice(position: currentCameraPosition)
         
-        // 🔧 追加: 音声デバイス設定
+        // 音声デバイス設定
         await setupAudioDevice()
         
         // 動画出力設定
@@ -92,7 +97,11 @@ class VideoManager: NSObject, ObservableObject {
         setupPreviewLayer()
         
         // セッション開始
-        startSession()
+        await startSession()
+        
+        // 🔧 修正: セットアップ完了を明示的にマーク
+        isSetupComplete = true
+        print("✅ カメラセットアップ完全完了")
     }
     
     private func setupCameraDevice(position: AVCaptureDevice.Position) async {
@@ -125,7 +134,6 @@ class VideoManager: NSObject, ObservableObject {
         }
     }
     
-    // 🔧 追加: 音声デバイス設定
     private func setupAudioDevice() async {
         guard let captureSession = captureSession else { return }
         guard microphonePermissionGranted else {
@@ -175,7 +183,7 @@ class VideoManager: NSObject, ObservableObject {
                 }
             }
             
-            // 🔧 追加: 音声接続の確認
+            // 音声接続の確認
             if let audioConnection = movieOutput.connection(with: .audio) {
                 print("✅ 音声出力接続確認: \(audioConnection.isEnabled)")
             } else {
@@ -199,30 +207,28 @@ class VideoManager: NSObject, ObservableObject {
     
     // MARK: - Session Control
     
-    private func startSession() {
+    // 🔧 修正: awaitを追加してセッション開始の完了を確実に待つ
+    private func startSession() async {
         guard let captureSession = captureSession else { return }
         
-        // 🔧 修正: バックグラウンドスレッドでセッション開始
-        Task {
-            await withCheckedContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    if !captureSession.isRunning {
-                        captureSession.startRunning()
-                        print("✅ カメラセッション開始")
-                    }
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                if !captureSession.isRunning {
+                    captureSession.startRunning()
+                    print("✅ カメラセッション開始完了")
+                }
+                
+                DispatchQueue.main.async {
+                    self.isSessionRunning = captureSession.isRunning
                     continuation.resume()
                 }
             }
-            
-            // メインスレッドでUI状態を更新
-            isSessionRunning = captureSession.isRunning
         }
     }
     
     func stopSession() {
         guard let captureSession = captureSession else { return }
         
-        // 🔧 修正: バックグラウンドスレッドでセッション停止
         Task {
             await withCheckedContinuation { continuation in
                 DispatchQueue.global(qos: .userInitiated).async {
@@ -230,12 +236,14 @@ class VideoManager: NSObject, ObservableObject {
                         captureSession.stopRunning()
                         print("🛑 カメラセッション停止")
                     }
-                    continuation.resume()
+                    
+                    DispatchQueue.main.async {
+                        self.isSessionRunning = false
+                        self.isSetupComplete = false  // 🔧 追加: 停止時にセットアップ状態をリセット
+                        continuation.resume()
+                    }
                 }
             }
-            
-            // メインスレッドでUI状態を更新
-            isSessionRunning = false
         }
     }
     
@@ -262,7 +270,7 @@ class VideoManager: NSObject, ObservableObject {
             throw RecordingError.alreadyRecording
         }
         
-        // 🔧 追加: 録画前に音声接続を確認
+        // 録画前に音声接続を確認
         if let audioConnection = movieOutput.connection(with: .audio) {
             print("🎤 音声録音設定: \(audioConnection.isEnabled ? "有効" : "無効")")
         }
@@ -301,7 +309,6 @@ extension VideoManager: AVCaptureFileOutputRecordingDelegate {
     
     nonisolated func fileOutput(_ output: AVCaptureFileOutput, didStartRecordingTo fileURL: URL, from connections: [AVCaptureConnection]) {
         print("🎬 録画開始: \(fileURL.lastPathComponent)")
-        // 🔧 修正: 接続状況を正しい方法でログ出力
         for connection in connections {
             if let inputPort = connection.inputPorts.first {
                 if inputPort.mediaType == .video {

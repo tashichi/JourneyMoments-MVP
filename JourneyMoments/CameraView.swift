@@ -10,7 +10,6 @@ struct CameraView: View {
     @State private var isRecording = false
     @State private var showingAlert = false
     @State private var alertMessage = ""
-    // 🔧 追加: 成功通知の状態管理
     @State private var showSuccessToast = false
     @State private var successMessage = ""
     
@@ -20,12 +19,12 @@ struct CameraView: View {
             Color.black
                 .ignoresSafeArea(.all)
             
-            // カメラプレビューまたはプレースホルダー
+            // 🔧 修正: 権限確認のみでプレビュー表示
             if videoManager.cameraPermissionGranted {
                 CameraPreviewRepresentable(videoManager: videoManager)
                     .ignoresSafeArea(.all)
             } else {
-                VStack {
+                VStack(spacing: 20) {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 60))
                         .foregroundColor(.gray)
@@ -46,7 +45,7 @@ struct CameraView: View {
                 controlsView
             }
             
-            // 🔧 修正: 録画中表示を別レイヤーで固定位置に
+            // 録画中表示
             if isRecording {
                 VStack {
                     Spacer()
@@ -55,7 +54,7 @@ struct CameraView: View {
                 }
             }
             
-            // 🔧 修正: 成功トースト表示を録画中と同じ位置に
+            // 成功トースト表示
             if showSuccessToast {
                 VStack {
                     Spacer()
@@ -71,7 +70,6 @@ struct CameraView: View {
         .onDisappear {
             videoManager.stopSession()
         }
-        // 🔧 修正: エラー時のみアラート表示
         .alert("Recording Error", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
@@ -139,11 +137,10 @@ struct CameraView: View {
     // MARK: - Controls View
     private var controlsView: some View {
         VStack(spacing: 20) {
-            // 🔧 修正: 撮影ボタンの位置とアニメーションを改善
             HStack {
                 Spacer()
                 
-                // 撮影ボタン（位置固定）
+                // 撮影ボタン
                 Button(action: recordOneSecondVideo) {
                     ZStack {
                         Circle()
@@ -161,7 +158,6 @@ struct CameraView: View {
                     }
                 }
                 .disabled(isRecording || currentProject == nil)
-                // 🔧 修正: scaleEffectを削除してボタン移動を防止
                 
                 Spacer()
             }
@@ -169,7 +165,6 @@ struct CameraView: View {
         .padding(.bottom, 50)
     }
     
-    // 🔧 修正: 録画中表示を独立した固定位置に
     private var recordingStatusView: some View {
         VStack {
             Text("📹 Recording...")
@@ -184,7 +179,6 @@ struct CameraView: View {
         }
     }
     
-    // 🔧 修正: 成功トースト表示を録画中と同じスタイル・位置に
     private var successToastView: some View {
         VStack {
             HStack(spacing: 8) {
@@ -208,15 +202,19 @@ struct CameraView: View {
     // MARK: - Functions
     
     private func setupCamera() {
-        print("🔧 setupCamera() started")
+        print("🔧 CameraView setupCamera() 開始")
         Task {
-            print("🔧 Permission request started")
+            print("🔧 権限リクエスト開始")
             await videoManager.requestCameraPermission()
-            print("🔧 Permission request completed: \(videoManager.cameraPermissionGranted)")
+            print("🔧 権限リクエスト完了: \(videoManager.cameraPermissionGranted)")
             
-            print("🔧 Camera setup started")
-            await videoManager.setupCamera()
-            print("🔧 Camera setup completed")
+            if videoManager.cameraPermissionGranted {
+                print("🔧 カメラセットアップ開始")
+                await videoManager.setupCamera()
+                print("🔧 カメラセットアップ完了: \(videoManager.isSetupComplete)")
+            } else {
+                print("❌ カメラ権限が拒否されました")
+            }
         }
     }
     
@@ -226,7 +224,6 @@ struct CameraView: View {
         }
     }
     
-    // 🔧 修正: 録画完了後の処理をシンプルに
     private func recordOneSecondVideo() {
         guard let project = currentProject else { return }
         
@@ -249,7 +246,7 @@ struct CameraView: View {
                 // 撮影完了をメイン画面に通知
                 onRecordingComplete(newSegment)
                 
-                // 🔧 修正: 自動消失する成功トースト表示
+                // 成功トースト表示
                 successMessage = "✅ Segment \(project.segments.count + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
@@ -265,7 +262,6 @@ struct CameraView: View {
                 print("✅ Segment saved: \(filename) - Segment \(project.segments.count + 1) recorded")
                 
             } catch {
-                // エラー時のみアラート表示
                 alertMessage = "Recording failed: \(error.localizedDescription)"
                 showingAlert = true
                 print("❌ Recording error: \(error)")
@@ -281,25 +277,74 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     let videoManager: VideoManager
     
     func makeUIView(context: Context) -> UIView {
-        let view = UIView()
+        print("🔧 makeUIView 開始")
+        let view = CameraContainerView()
         view.backgroundColor = .black
-        
-        DispatchQueue.main.async {
-            if let previewLayer = videoManager.previewLayer {
-                previewLayer.frame = view.bounds
-                previewLayer.videoGravity = .resizeAspectFill
-                view.layer.addSublayer(previewLayer)
-            }
-        }
-        
+        view.videoManager = videoManager
+        print("🔧 makeUIView 完了")
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
+        print("🔧 updateUIView 開始 - Frame: \(uiView.bounds)")
+        
+        guard let containerView = uiView as? CameraContainerView else {
+            print("❌ CameraContainerView キャスト失敗")
+            return
+        }
+        
+        containerView.updatePreviewLayer()
+        print("🔧 updateUIView 完了")
+    }
+}
+
+// 🔧 新規追加: 専用のカメラコンテナビュー
+class CameraContainerView: UIView {
+    weak var videoManager: VideoManager?
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        print("🔧 layoutSubviews - Frame: \(bounds)")
+        
+        // 🔧 重要: レイアウト完了後にプレビューレイヤーを更新
         DispatchQueue.main.async {
-            if let previewLayer = videoManager.previewLayer {
-                previewLayer.frame = uiView.bounds
-            }
+            self.updatePreviewLayer()
+        }
+    }
+    
+    func updatePreviewLayer() {
+        // bounds がゼロの場合は処理しない
+        guard bounds.width > 0 && bounds.height > 0 else {
+            print("⚠️ View bounds がゼロのため、プレビューレイヤー更新をスキップ")
+            return
+        }
+        
+        guard let videoManager = videoManager,
+              let newPreviewLayer = videoManager.previewLayer else {
+            print("⚠️ VideoManager またはプレビューレイヤーが準備されていません")
+            return
+        }
+        
+        // 既存のプレビューレイヤーを削除
+        if let existingLayer = previewLayer {
+            existingLayer.removeFromSuperlayer()
+            print("🔧 既存のプレビューレイヤーを削除")
+        }
+        
+        // 新しいプレビューレイヤーを設定
+        newPreviewLayer.frame = bounds
+        newPreviewLayer.videoGravity = .resizeAspectFill
+        layer.addSublayer(newPreviewLayer)
+        previewLayer = newPreviewLayer
+        
+        print("✅ プレビューレイヤー追加完了 - Frame: \(bounds)")
+        
+        // セッション状態確認
+        if let session = newPreviewLayer.session, session.isRunning {
+            print("✅ セッションは実行中です")
+        } else {
+            print("⚠️ セッションが実行されていません")
         }
     }
 }
