@@ -40,6 +40,13 @@ struct PlayerView: View {
     @State private var exportError: String?
     @State private var showExportSuccess = false
     
+    // ローディング機能の状態管理
+    @State private var isLoadingComposition = false
+    @State private var loadingProgress: Double = 0.0
+    @State private var loadingMessage: String = "Preparing playback..."
+    @State private var processedSegments: Int = 0
+    @State private var loadingStartTime = Date()
+    
     private var hasSegments: Bool {
         !project.segments.isEmpty
     }
@@ -77,6 +84,11 @@ struct PlayerView: View {
                     endPoint: .bottom
                 )
             )
+            
+            // ローディングオーバーレイ
+            if isLoadingComposition {
+                loadingOverlay
+            }
         }
         .onAppear {
             setupPlayer()
@@ -114,6 +126,101 @@ struct PlayerView: View {
             Button("OK") { }
         } message: {
             Text("Video has been saved to your photo library!")
+        }
+    }
+    
+    // MARK: - Loading Overlay
+    private var loadingOverlay: some View {
+        ZStack {
+            // 半透明背景
+            Color.black.opacity(0.8)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                // ローディングアニメーション
+                VStack(spacing: 16) {
+                    // 回転するアイコン
+                    Image(systemName: "gearshape.2")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                        .rotationEffect(.degrees(loadingProgress * 360))
+                        .animation(.linear(duration: 2).repeatForever(autoreverses: false), value: loadingProgress)
+                    
+                    // メインメッセージ
+                    Text(loadingMessage)
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                    
+                    // セグメント処理状況
+                    Text("\(processedSegments) / \(project.segments.count) segments")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .monospacedDigit()
+                }
+                
+                // 進捗バー
+                VStack(spacing: 8) {
+                    // 進捗バー本体
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // 背景
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(height: 8)
+                                .cornerRadius(4)
+                            
+                            // 進捗
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.blue, .purple],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geometry.size.width * loadingProgress, height: 8)
+                                .cornerRadius(4)
+                                .animation(.easeInOut(duration: 0.3), value: loadingProgress)
+                        }
+                    }
+                    .frame(height: 8)
+                    
+                    // パーセンテージ表示
+                    HStack {
+                        Text("Progress")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        
+                        Spacer()
+                        
+                        Text("\(Int(loadingProgress * 100))%")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white)
+                            .monospacedDigit()
+                    }
+                }
+                
+                // 推定残り時間（オプション）
+                if loadingProgress > 0.1 {
+                    let estimatedTimeRemaining = estimateRemainingTime()
+                    if estimatedTimeRemaining > 0 {
+                        Text("Estimated time: \(Int(estimatedTimeRemaining))s remaining")
+                            .font(.caption2)
+                            .foregroundColor(.gray)
+                            .italic()
+                    }
+                }
+            }
+            .padding(32)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.9))
+                    .shadow(color: .black.opacity(0.5), radius: 20, x: 0, y: 10)
+            )
+            .padding(.horizontal, 40)
         }
     }
     
@@ -508,6 +615,43 @@ struct PlayerView: View {
         .cornerRadius(10)
     }
     
+    // MARK: - Helper Functions
+    
+    // 推定時間計算
+    private func estimateRemainingTime() -> Double {
+        guard loadingProgress > 0.1 else { return 0 }
+        
+        // 現在の進捗から推定残り時間を計算
+        let elapsedTime = Date().timeIntervalSince(loadingStartTime)
+        let totalEstimatedTime = elapsedTime / loadingProgress
+        let remainingTime = totalEstimatedTime - elapsedTime
+        
+        return max(0, remainingTime)
+    }
+    
+    // 進捗付きComposition作成
+    private func createCompositionWithProgress() async -> AVComposition? {
+        return await withCheckedContinuation { continuation in
+            Task {
+                let result = await projectManager.createCompositionWithProgress(
+                    for: project,
+                    progressCallback: { processed, total in
+                        // メインスレッドで進捗更新
+                        DispatchQueue.main.async {
+                            self.processedSegments = processed
+                            self.loadingProgress = Double(processed) / Double(total) * 0.8 // 80%まで
+                            
+                            if processed % 10 == 0 || processed == total {
+                                print("📊 Composition progress: \(processed)/\(total) (\(Int(self.loadingProgress * 100))%)")
+                            }
+                        }
+                    }
+                )
+                continuation.resume(returning: result)
+            }
+        }
+    }
+    
     // MARK: - Export Functions
     
     // 写真ライブラリアクセス権限をリクエスト
@@ -698,20 +842,39 @@ struct PlayerView: View {
         }
     }
     
-    // AVComposition統合再生の設定
+    // AVComposition統合再生の設定（進捗表示付き）
     private func loadComposition() {
         print("Loading composition for seamless playback")
         
+        // ローディング状態開始
+        isLoadingComposition = true
+        loadingProgress = 0.0
+        loadingMessage = "Preparing seamless playback..."
+        processedSegments = 0
+        loadingStartTime = Date()
+        
         Task {
-            guard let newComposition = await projectManager.createComposition(for: project) else {
+            // 進捗付きでComposition作成
+            guard let newComposition = await createCompositionWithProgress() else {
                 print("Failed to create composition")
-                // フォールバックとして個別再生に切り替え
-                useSeamlessPlayback = false
-                loadCurrentSegment()
+                
+                await MainActor.run {
+                    // ローディング終了
+                    isLoadingComposition = false
+                    
+                    // フォールバックとして個別再生に切り替え
+                    useSeamlessPlayback = false
+                    loadCurrentSegment()
+                }
                 return
             }
             
             // セグメント時間範囲を取得
+            await MainActor.run {
+                loadingMessage = "Finalizing playback setup..."
+                loadingProgress = 0.9
+            }
+            
             segmentTimeRanges = await projectManager.getSegmentTimeRanges(for: project)
             
             // メインスレッドでUI更新
@@ -743,6 +906,10 @@ struct PlayerView: View {
                 currentTime = 0
                 duration = newComposition.duration.seconds
                 
+                // 最終進捗更新
+                loadingProgress = 1.0
+                loadingMessage = "Ready to play!"
+                
                 print("Composition loaded successfully")
                 print("Total composition duration: \(duration)s")
                 print("Segment time ranges: \(segmentTimeRanges.count)")
@@ -752,6 +919,11 @@ struct PlayerView: View {
                 
                 // 現在のセグメントインデックスを更新
                 updateCurrentSegmentIndex()
+                
+                // 短い遅延後にローディングを終了
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.isLoadingComposition = false
+                }
             }
         }
     }

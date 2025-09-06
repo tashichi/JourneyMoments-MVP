@@ -196,6 +196,129 @@ class ProjectManager: ObservableObject {
         
         return composition
     }
+    // MARK: - 進捗付きComposition作成関数（向き補正修正版）
+    func createCompositionWithProgress(
+        for project: Project,
+        progressCallback: @escaping (Int, Int) -> Void
+    ) async -> AVComposition? {
+        
+        guard !project.segments.isEmpty else {
+            print("No segments to create composition")
+            return nil
+        }
+        
+        print("Creating composition with progress tracking for \(project.segments.count) segments")
+        
+        let composition = AVMutableComposition()
+        
+        // 動画トラックと音声トラックを作成
+        guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+              let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            print("Failed to create composition tracks")
+            return nil
+        }
+        
+        var currentTime = CMTime.zero
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        
+        // セグメントを順序通りに処理
+        let sortedSegments = project.segments.sorted { $0.order < $1.order }
+        let totalSegments = sortedSegments.count
+        
+        // セグメントを順番に処理
+        for (index, segment) in sortedSegments.enumerated() {
+            // 進捗コールバック呼び出し
+            progressCallback(index, totalSegments)
+            
+            // ファイルURL構築
+            let fileURL: URL
+            if !segment.uri.hasPrefix("/") {
+                fileURL = documentsPath.appendingPathComponent(segment.uri)
+            } else {
+                fileURL = URL(fileURLWithPath: segment.uri)
+            }
+            
+            // ファイル存在確認
+            guard FileManager.default.fileExists(atPath: fileURL.path) else {
+                print("⚠️ File not found: \(fileURL.path)")
+                continue
+            }
+            
+            // AVURLAsset作成（iOS 18対応）
+            let asset = AVURLAsset(url: fileURL)
+            
+            do {
+                // 非推奨API対応: loadTracks使用
+                let assetVideoTracks = try await asset.loadTracks(withMediaType: .video)
+                let assetAudioTracks = try await asset.loadTracks(withMediaType: .audio)
+                let assetDuration = try await asset.load(.duration)
+                
+                // 動画トラックを追加
+                if let assetVideoTrack = assetVideoTracks.first {
+                    let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
+                    try videoTrack.insertTimeRange(timeRange, of: assetVideoTrack, at: currentTime)
+                    
+                    // 🔧 重要: 動画の向き補正を適用（既存のcreateComposition関数と同じ処理）
+                    if index == 0 {
+                        // 最初のセグメントから向き情報を取得してcomposition全体に適用
+                        let transform = assetVideoTrack.preferredTransform
+                        let naturalSize = assetVideoTrack.naturalSize
+                        
+                        // compositionに向き情報を設定
+                        videoTrack.preferredTransform = transform
+                        
+                        // 向きに応じてcompositionのサイズを調整
+                        let angle = atan2(transform.b, transform.a)
+                        let isRotated = abs(angle) > .pi / 4
+                        
+                        if isRotated {
+                            // 90度または270度回転の場合、幅と高さを入れ替え
+                            composition.naturalSize = CGSize(width: naturalSize.height, height: naturalSize.width)
+                            print("🔄 Composition rotated: \(naturalSize) → \(composition.naturalSize)")
+                        } else {
+                            composition.naturalSize = naturalSize
+                            print("🔄 Composition normal: \(naturalSize)")
+                        }
+                        
+                        print("🔄 Transform applied: \(transform)")
+                    }
+                    
+                    print("✅ Video track added: Segment \(segment.order)")
+                }
+                
+                // 音声トラックを追加
+                if let assetAudioTrack = assetAudioTracks.first {
+                    let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
+                    try audioTrack.insertTimeRange(timeRange, of: assetAudioTrack, at: currentTime)
+                    print("✅ Audio track added: Segment \(segment.order)")
+                }
+                
+                // 次のセグメントの開始時間を更新
+                currentTime = CMTimeAdd(currentTime, assetDuration)
+                print("🔄 Current composition time: \(currentTime.seconds)s")
+                
+                // 少し処理時間をシミュレート（実際のファイル処理時間）
+                try await Task.sleep(nanoseconds: 10_000_000) // 0.01秒
+                
+            } catch {
+                print("⚠️ Error processing segment \(segment.order): \(error)")
+                continue
+            }
+            
+            // デバッグログ（50セグメントごと）
+            if (index + 1) % 50 == 0 || index == totalSegments - 1 {
+                print("📊 Processed \(index + 1)/\(totalSegments) segments")
+            }
+        }
+        
+        // 最終進捗コールバック
+        progressCallback(totalSegments, totalSegments)
+        
+        let totalDuration = currentTime.seconds
+        print("✅ Composition created: \(totalSegments) segments, total duration: \(totalDuration)s")
+        
+        return composition
+    }
     
     // 🆕 追加: セグメント位置計算機能（統合再生用）
     func getSegmentTimeRanges(for project: Project) async -> [(segment: VideoSegment, timeRange: CMTimeRange)] {
