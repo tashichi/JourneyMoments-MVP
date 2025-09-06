@@ -210,7 +210,7 @@ struct PlayerView: View {
         .padding(.bottom, 50)
     }
     
-    // MARK: - Progress View
+    // MARK: - Progress View（シーク機能付き）
     private var progressView: some View {
         VStack(spacing: 8) {
             HStack {
@@ -227,11 +227,142 @@ struct PlayerView: View {
                     .monospacedDigit()
             }
             
-            ProgressView(value: currentTime, total: duration)
-                .progressViewStyle(LinearProgressViewStyle(tint: .white))
-                .scaleEffect(y: 2)
+            // シーク機能付きプログレスバー
+            if useSeamlessPlayback && !segmentTimeRanges.isEmpty {
+                // シームレス再生時のみシーク機能有効
+                seekableProgressBar
+            } else {
+                // 個別再生時は従来のプログレスバー
+                ProgressView(value: currentTime, total: duration)
+                    .progressViewStyle(LinearProgressViewStyle(tint: .white))
+                    .scaleEffect(y: 2)
+            }
         }
         .padding(.horizontal, 40)
+    }
+    
+    // MARK: - Seekable Progress Bar
+    private var seekableProgressBar: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                // 背景バー
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: 4)
+                    .cornerRadius(2)
+                
+                // 進捗バー
+                Rectangle()
+                    .fill(Color.white)
+                    .frame(width: max(0, geometry.size.width * (currentTime / duration)), height: 4)
+                    .cornerRadius(2)
+                
+                // セグメント区切り線（薄く表示）
+                ForEach(0..<segmentTimeRanges.count, id: \.self) { index in
+                    if index > 0 { // 最初のセグメントには線を引かない
+                        let segmentStartTime = segmentTimeRanges[index].timeRange.start.seconds
+                        let xPosition = geometry.size.width * (segmentStartTime / duration)
+                        
+                        Rectangle()
+                            .fill(Color.yellow.opacity(0.6))
+                            .frame(width: 1, height: 8)
+                            .position(x: xPosition, y: 4)
+                    }
+                }
+                
+                // シークハンドル
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 12, height: 12)
+                    .position(
+                        x: max(6, min(geometry.size.width - 6, geometry.size.width * (currentTime / duration))),
+                        y: 4
+                    )
+                    .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+            }
+            .contentShape(Rectangle()) // タップエリアを全体に拡張
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        // ドラッグ中の処理
+                        handleSeekGesture(
+                            location: value.location,
+                            geometryWidth: geometry.size.width,
+                            isDragging: true
+                        )
+                    }
+                    .onEnded { value in
+                        // ドラッグ終了時の処理
+                        handleSeekGesture(
+                            location: value.location,
+                            geometryWidth: geometry.size.width,
+                            isDragging: false
+                        )
+                    }
+            )
+            .onTapGesture { location in
+                // タップ時の処理
+                handleSeekGesture(
+                    location: location,
+                    geometryWidth: geometry.size.width,
+                    isDragging: false
+                )
+            }
+        }
+        .frame(height: 20)
+    }
+    
+    // MARK: - Seek Gesture Handler
+    private func handleSeekGesture(location: CGPoint, geometryWidth: CGFloat, isDragging: Bool) {
+        // シームレス再生時のみ有効
+        guard useSeamlessPlayback, !segmentTimeRanges.isEmpty else {
+            print("Seek not available - not in seamless mode")
+            return
+        }
+        
+        // タップ位置から時間を計算
+        let tapProgress = max(0, min(1, location.x / geometryWidth))
+        let targetTime = tapProgress * duration
+        
+        // 対象セグメントを特定
+        var targetSegmentIndex = 0
+        for (index, (_, timeRange)) in segmentTimeRanges.enumerated() {
+            let segmentStartTime = timeRange.start.seconds
+            let segmentEndTime = (timeRange.start + timeRange.duration).seconds
+            
+            if targetTime >= segmentStartTime && targetTime < segmentEndTime {
+                targetSegmentIndex = index
+                break
+            } else if targetTime >= segmentEndTime && index == segmentTimeRanges.count - 1 {
+                // 最後のセグメント範囲を超えた場合
+                targetSegmentIndex = index
+                break
+            }
+        }
+        
+        // セグメント変更のログ
+        if targetSegmentIndex != currentSegmentIndex {
+            print("🎯 Seek: Segment \(currentSegmentIndex + 1) → \(targetSegmentIndex + 1)")
+        }
+        
+        // 現在のセグメントインデックスを更新
+        currentSegmentIndex = targetSegmentIndex
+        
+        // プレイヤーをシーク
+        if targetSegmentIndex < segmentTimeRanges.count {
+            let targetCMTime = segmentTimeRanges[targetSegmentIndex].timeRange.start
+            player.seek(to: targetCMTime) { _ in
+                // シーク完了後の処理
+                if !isDragging {
+                    print("✅ Seek completed to Segment \(targetSegmentIndex + 1)")
+                }
+            }
+        }
+        
+        // フィードバック（将来的にハプティクスなどを追加可能）
+        if !isDragging {
+            print("📍 Jumped to Segment \(targetSegmentIndex + 1)/\(segmentTimeRanges.count)")
+        }
     }
     
     // MARK: - Export Progress View
