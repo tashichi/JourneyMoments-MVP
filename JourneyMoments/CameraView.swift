@@ -240,14 +240,14 @@ struct CameraView: View {
                 let newSegment = VideoSegment(
                     uri: filename,
                     cameraPosition: videoManager.currentCameraPosition,
-                    order: project.segments.count + 1
+                    order: (currentProject?.segments.count ?? 0) + 1  // 現在のプロジェクトから計算
                 )
-                
+
                 // 撮影完了をメイン画面に通知
                 onRecordingComplete(newSegment)
-                
+
                 // 成功トースト表示
-                successMessage = "✅ Segment \(project.segments.count + 1) recorded"
+                successMessage = "✅ Segment \((currentProject?.segments.count ?? 0) + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
                 }

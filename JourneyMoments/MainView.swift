@@ -59,10 +59,15 @@ struct MainView: View {
                 CameraView(
                     currentProject: project,
                     onRecordingComplete: { videoSegment in
-                        // 新しいセグメントをプロジェクトに追加
-                        var updatedProject = project
+                        // 最新のプロジェクト状態を取得
+                        guard let currentProject = projectManager.projects.first(where: { $0.id == project.id }) else { return }
+                        
+                        var updatedProject = currentProject  // 最新の状態を使用
                         updatedProject.segments.append(videoSegment)
                         projectManager.updateProject(updatedProject)
+                        
+                        // selectedProjectも更新
+                        selectedProject = updatedProject
                     },
                     onBackToProjects: {
                         currentScreen = .projects
