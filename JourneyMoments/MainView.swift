@@ -12,6 +12,7 @@ struct MainView: View {
     @State private var editingProject: Project?
     @State private var newProjectName = ""
     @State private var showProjectLimitAlert = false
+    @State private var showPurchaseView = false
     
     // エクスポート機能の状態管理
     @State private var showExportAlert = false
@@ -120,6 +121,9 @@ struct MainView: View {
         } message: {
             Text("Video has been saved to your photo library!")
         }
+        .sheet(isPresented: $showPurchaseView) {
+                    PurchaseView(purchaseManager: purchaseManager)
+                }
     }
     
     // MARK: - Header View
@@ -328,8 +332,8 @@ struct MainView: View {
         
         // 購入制限チェック
         if !purchaseManager.canCreateNewProject(currentProjectCount: projectManager.projects.count) {
-            print("プロジェクト作成制限: 無料版は3個まで")
-            showProjectLimitAlert = true
+            print("プロジェクト作成制限: 無料版は3個まで - 購入画面を表示")
+            showPurchaseView = true
             return
         }
         
@@ -383,8 +387,8 @@ struct MainView: View {
         
         // エクスポート制限チェック
         if !purchaseManager.canExportVideo() {
-            print("Export blocked: Free version limitation")
-            showProjectLimitAlert = true
+            print("Export blocked: Free version limitation - 購入画面を表示")
+            showPurchaseView = true
             return
         }
         
