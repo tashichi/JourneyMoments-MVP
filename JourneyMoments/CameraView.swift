@@ -326,6 +326,14 @@ class CameraContainerView: UIView {
             return
         }
         
+        // 既に同じプレビューレイヤーが設定済みの場合はスキップ
+        if previewLayer === newPreviewLayer {
+            // フレームのみ更新
+            newPreviewLayer.frame = bounds
+            print("🔧 既存プレビューレイヤーのフレームのみ更新")
+            return
+        }
+        
         // 既存のプレビューレイヤーを削除
         if let existingLayer = previewLayer {
             existingLayer.removeFromSuperlayer()
@@ -347,15 +355,14 @@ class CameraContainerView: UIView {
             print("⚠️ セッションが実行されていません")
         }
     }
-}
-
-// MARK: - Preview
-struct CameraView_Previews: PreviewProvider {
-    static var previews: some View {
-        CameraView(
-            currentProject: Project(name: "Test Project"),
-            onRecordingComplete: { _ in },
-            onBackToProjects: { }
-        )
+    // MARK: - Preview
+    struct CameraView_Previews: PreviewProvider {
+        static var previews: some View {
+            CameraView(
+                currentProject: Project(name: "Test Project"),
+                onRecordingComplete: { _ in },
+                onBackToProjects: { }
+            )
+        }
     }
 }
