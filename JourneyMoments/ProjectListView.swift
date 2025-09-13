@@ -176,81 +176,74 @@ struct ProjectListView: View {
                         }
                     }
                     
-                    // 🔧 修正: ボタン群（統一サイズ、短縮テキスト）
-                    HStack(spacing: 12) {
-                        // 撮影ボタン
-                        Button {
-                            print("🔴 Record button tapped: \(project.name)")
-                            onOpenProject(project)
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "camera.fill")
-                                    .font(.caption)
-                                Text("Rec")
-                                    .font(.caption)
-                                    .fontWeight(.medium)
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.red)
-                            .foregroundColor(.white)
-                            .cornerRadius(15)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        
-                        // 再生ボタン（セグメントがある場合のみ）
-                        if project.segmentCount > 0 {
-                            Button {
-                                print("🔵 Play button tapped: \(project.name)")
-                                onPlayProject(project)
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "play.fill")
-                                        .font(.caption)
-                                    Text("Play")
-                                        .font(.caption)
-                                        .fontWeight(.medium)
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(Color.blue)
-                                .foregroundColor(.white)
-                                .cornerRadius(15)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        
-                        // エクスポートボタン（セグメントがある場合のみ）
-                        if project.segmentCount > 0 {
-                            Button {
-                                print("🟠 Export button tapped: \(project.name)")
-                                handleExportProject(project)
-                            } label: {
-                                HStack(spacing: 6) {
-                                    if exportingProjects.contains(project.id) {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                            .scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .font(.caption)
-                                        Text("Export")
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
-                                .background(exportingProjects.contains(project.id) ? Color.orange.opacity(0.7) : Color.orange)
-                                .foregroundColor(.white)
-                                .cornerRadius(15)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .disabled(exportingProjects.contains(project.id))
-                        }
-                        
-                        Spacer()
-                    }
+                    // 下部ボタンエリア（Rec | Play | Export）
+                       HStack(spacing: 0) {
+                           // 撮影ボタン
+                           Button {
+                               print("🔴 Record button tapped: \(project.name)")
+                               onOpenProject(project)
+                           } label: {
+                               HStack(spacing: 6) {
+                                   Image(systemName: "camera.fill")
+                                       .font(.caption)
+                                   Text("Rec")
+                                       .font(.caption)
+                                       .fontWeight(.medium)
+                               }
+                               .frame(maxWidth: .infinity, minHeight: 40)
+                               .background(Color.red)
+                               .foregroundColor(.white)
+                           }
+                           .buttonStyle(PlainButtonStyle())
+                           
+                           // 再生ボタン
+                           Button {
+                               print("🔵 Play button tapped: \(project.name)")
+                               onPlayProject(project)
+                           } label: {
+                               HStack(spacing: 6) {
+                                   Image(systemName: "play.fill")
+                                       .font(.caption)
+                                   Text("Play")
+                                       .font(.caption)
+                                       .fontWeight(.medium)
+                               }
+                               .frame(maxWidth: .infinity, minHeight: 40)
+                               .background(Color.blue)
+                               .foregroundColor(.white)
+                           }
+                           .buttonStyle(PlainButtonStyle())
+                           .disabled(project.segmentCount == 0)
+                           .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+                           
+                           // エクスポートボタン
+                           Button {
+                               print("🟠 Export button tapped: \(project.name)")
+                               handleExportProject(project)
+                           } label: {
+                               HStack(spacing: 6) {
+                                   if exportingProjects.contains(project.id) {
+                                       ProgressView()
+                                           .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                           .scaleEffect(0.8)
+                                   } else {
+                                       Image(systemName: "square.and.arrow.up")
+                                           .font(.caption)
+                                       Text("Export")
+                                           .font(.caption)
+                                           .fontWeight(.medium)
+                                   }
+                               }
+                               .frame(maxWidth: .infinity, minHeight: 40)
+                               .background(exportingProjects.contains(project.id) ? Color.orange.opacity(0.7) : Color.orange)
+                               .foregroundColor(.white)
+                           }
+                           .buttonStyle(PlainButtonStyle())
+                           .disabled(exportingProjects.contains(project.id) || project.segmentCount == 0)
+                           .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+                       }
+                       .cornerRadius(8)
+                       .clipped()
                 }
                 .padding(16)
                 .background(Color(.systemGray6).opacity(0.15))

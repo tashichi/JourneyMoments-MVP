@@ -192,6 +192,7 @@ struct MainView: View {
     
     private func projectCard(_ project: Project) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            // 上部：プロジェクト情報
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(project.name)
@@ -209,67 +210,66 @@ struct MainView: View {
                 }
                 
                 Spacer()
-                
-                VStack(spacing: 8) {
-                    Button(action: {
-                        openProject(project, screen: .camera)
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "camera")
-                            Text("Rec")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(minWidth: 85)
-                        .padding(.vertical, 6)
-                        .background(Color.red.opacity(0.8))
-                        .cornerRadius(8)
-                    }
-                    
-                    Button(action: {
-                        openProject(project, screen: .player)
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "play")
-                            Text("Play")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(minWidth: 85)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.8))
-                        .cornerRadius(8)
-                    }
-                    .disabled(project.segmentCount == 0)
-                    .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-                    
-                    Button(action: {
-                        exportProject(project)
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.up")
-                            Text("Export")
-                        }
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(minWidth: 85)
-                        .padding(.vertical, 6)
-                        .background(purchaseManager.canExportVideo() ? Color.orange.opacity(0.8) : Color.gray.opacity(0.6))
-                        .cornerRadius(8)
-                    }
-                    .disabled(project.segmentCount == 0)
-                    .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-                }
             }
+            
+            // 下部：横並びボタン
+            // 下部：横並びボタン
+            HStack(spacing: 2) {
+                // 撮影ボタン
+                Button(action: {
+                    openProject(project, screen: .camera)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "camera")
+                        Text("Rec")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 35)
+                    .background(Color.red.opacity(0.8))
+                }
+                
+                // 再生ボタン
+                Button(action: {
+                    openProject(project, screen: .player)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play")
+                        Text("Play")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 35)
+                    .background(Color.blue.opacity(0.8))
+                }
+                .disabled(project.segmentCount == 0)
+                .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+                
+                // エクスポートボタン
+                Button(action: {
+                    exportProject(project)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.and.arrow.up")
+                        Text("Export")
+                    }
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity, minHeight: 35)
+                    .background(purchaseManager.canExportVideo() ? Color.orange.opacity(0.8) : Color.gray.opacity(0.6))
+                }
+                .disabled(project.segmentCount == 0)
+                .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+            }
+            .cornerRadius(8)
         }
         .padding(16)
         .background(Color.white.opacity(0.1))
         .cornerRadius(12)
         .onTapGesture {
-            // タップでプロジェクト選択
             selectedProject = project
         }
         .contextMenu {
