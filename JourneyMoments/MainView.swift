@@ -214,7 +214,7 @@ struct MainView: View {
             
             // 下部：横並びボタン
             // 下部：横並びボタン
-            HStack(spacing: 2) {
+            HStack(spacing: 8) {
                 // 撮影ボタン
                 Button(action: {
                     openProject(project, screen: .camera)
@@ -228,6 +228,7 @@ struct MainView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, minHeight: 35)
                     .background(Color.red.opacity(0.8))
+                    .cornerRadius(6)
                 }
                 
                 // 再生ボタン
@@ -243,6 +244,7 @@ struct MainView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, minHeight: 35)
                     .background(Color.blue.opacity(0.8))
+                    .cornerRadius(6)
                 }
                 .disabled(project.segmentCount == 0)
                 .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
@@ -260,11 +262,12 @@ struct MainView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, minHeight: 35)
                     .background(purchaseManager.canExportVideo() ? Color.orange.opacity(0.8) : Color.gray.opacity(0.6))
+                    .cornerRadius(6)
                 }
                 .disabled(project.segmentCount == 0)
                 .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
             }
-            .cornerRadius(8)
+        
         }
         .padding(16)
         .background(Color.white.opacity(0.1))
