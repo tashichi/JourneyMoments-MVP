@@ -21,6 +21,10 @@ struct MainView: View {
     @State private var exportingProject: Project?
     @State private var exportProgress: Float = 0.0
     
+    // 削除確認の状態管理
+    @State private var showDeleteConfirmation = false
+    @State private var projectToDelete: Project?
+    
     enum AppScreen {
         case projects
         case camera
@@ -47,6 +51,11 @@ struct MainView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 50)
                 }
+            }
+            
+            // エクスポート進捗オーバーレイ
+            if let project = exportingProject {
+                exportProgressOverlay(for: project)
             }
         }
         .onAppear {
@@ -112,6 +121,21 @@ struct MainView: View {
         } message: {
             Text("Free version allows up to 3 projects. Upgrade to Full Version for unlimited projects and export features.")
         }
+        .alert("Delete Project", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                if let project = projectToDelete {
+                    deleteProject(project)
+                }
+                projectToDelete = nil
+            }
+            Button("Cancel", role: .cancel) {
+                projectToDelete = nil
+            }
+        } message: {
+            if let project = projectToDelete {
+                Text("Delete \"\(project.name)\"?\nThis action cannot be undone.")
+            }
+        }
         .alert("Export Status", isPresented: $showExportAlert) {
             Button("OK") {
                 exportError = nil
@@ -129,6 +153,69 @@ struct MainView: View {
         .sheet(isPresented: $showPurchaseView) {
                     PurchaseView(purchaseManager: purchaseManager)
                 }
+    }
+    
+    // MARK: - エクスポート進捗オーバーレイ
+    private func exportProgressOverlay(for project: Project) -> some View {
+        ZStack {
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 30) {
+                // プロジェクト情報
+                VStack(spacing: 8) {
+                    Text("Exporting Video")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Text(project.name)
+                        .font(.headline)
+                        .foregroundColor(.orange)
+                        .multilineTextAlignment(.center)
+                }
+                
+                // 進捗表示
+                VStack(spacing: 15) {
+                    ProgressView(value: exportProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: .orange))
+                        .frame(width: 280, height: 6)
+                        .scaleEffect(y: 2)
+                    
+                    Text("\(Int(exportProgress * 100))%")
+                        .font(.title)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .monospacedDigit()
+                }
+                
+                // 注意事項
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.yellow)
+                        Text("Keep app active during export")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Text("Do not switch apps or lock screen")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(40)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(Color(.systemGray6).opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 30)
+        }
     }
     
     // MARK: - Header View
@@ -213,7 +300,6 @@ struct MainView: View {
             }
             
             // 下部：横並びボタン
-            // 下部：横並びボタン
             HStack(spacing: 8) {
                 // 撮影ボタン
                 Button(action: {
@@ -267,7 +353,6 @@ struct MainView: View {
                 .disabled(project.segmentCount == 0)
                 .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
             }
-        
         }
         .padding(16)
         .background(Color.white.opacity(0.1))
@@ -283,7 +368,7 @@ struct MainView: View {
             }
             
             Button(action: {
-                deleteProject(project)
+                confirmDeleteProject(project)
             }) {
                 Label("Delete", systemImage: "trash")
             }
@@ -369,6 +454,11 @@ struct MainView: View {
         isEditingProjectName = false
     }
     
+    private func confirmDeleteProject(_ project: Project) {
+        projectToDelete = project
+        showDeleteConfirmation = true
+    }
+    
     private func deleteProject(_ project: Project) {
         print("Deleting project: \(project.name)")
         
@@ -440,11 +530,19 @@ struct MainView: View {
         exportingProject = project
         exportProgress = 0.0
         
+        // スリープ防止を有効化
+        UIApplication.shared.isIdleTimerDisabled = true
+        print("Sleep prevention enabled")
+        
         Task {
             do {
                 let success = await exportVideo(project: project)
                 
                 await MainActor.run {
+                    // スリープ防止を無効化
+                    UIApplication.shared.isIdleTimerDisabled = false
+                    print("Sleep prevention disabled")
+                    
                     self.exportingProject = nil
                     self.exportProgress = 0.0
                     
@@ -459,6 +557,10 @@ struct MainView: View {
                 }
             } catch {
                 await MainActor.run {
+                    // エラー時もスリープ防止を無効化
+                    UIApplication.shared.isIdleTimerDisabled = false
+                    print("Sleep prevention disabled (error)")
+                    
                     self.exportingProject = nil
                     self.exportProgress = 0.0
                     self.exportError = error.localizedDescription
@@ -495,7 +597,8 @@ struct MainView: View {
         exportSession.outputFileType = .mp4
         exportSession.shouldOptimizeForNetworkUse = true
         
-        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+        // 頻繁な進捗監視
+        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
             DispatchQueue.main.async {
                 self.exportProgress = exportSession.progress
             }
