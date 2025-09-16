@@ -19,11 +19,23 @@ struct CameraView: View {
             Color.black
                 .ignoresSafeArea(.all)
             
-            // 🔧 修正: 権限確認のみでプレビュー表示
-            if videoManager.cameraPermissionGranted {
+            // 修正: セットアップ完了を確実に待ってからプレビュー表示
+            if videoManager.cameraPermissionGranted && videoManager.isSetupComplete {
                 CameraPreviewRepresentable(videoManager: videoManager)
                     .ignoresSafeArea(.all)
+            } else if videoManager.cameraPermissionGranted && !videoManager.isSetupComplete {
+                // セットアップ中の表示
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+                    
+                    Text("Setting up camera...")
+                        .foregroundColor(.white)
+                        .font(.caption)
+                }
             } else {
+                // 権限なしの表示
                 VStack(spacing: 20) {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 60))
@@ -105,7 +117,7 @@ struct CameraView: View {
                         .foregroundColor(.white)
                         .cornerRadius(20)
                 }
-                .disabled(isRecording)
+                .disabled(isRecording || !videoManager.isSetupComplete)
             }
             .padding(.horizontal, 20)
             
@@ -151,13 +163,19 @@ struct CameraView: View {
                                     .stroke(Color.red, lineWidth: 6)
                             )
                         
-                        Text(isRecording ? "Recording" : "REC")
-                            .font(isRecording ? .caption : .body)
-                            .fontWeight(.bold)
-                            .foregroundColor(isRecording ? .white : .black)
+                        if videoManager.isSetupComplete {
+                            Text(isRecording ? "Recording" : "REC")
+                                .font(isRecording ? .caption : .body)
+                                .fontWeight(.bold)
+                                .foregroundColor(isRecording ? .white : .black)
+                        } else {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                        }
                     }
                 }
-                .disabled(isRecording || currentProject == nil)
+                .disabled(isRecording || currentProject == nil || !videoManager.isSetupComplete)
+                .opacity((videoManager.isSetupComplete && currentProject != nil) ? 1.0 : 0.5)
                 
                 Spacer()
             }
@@ -226,6 +244,7 @@ struct CameraView: View {
     
     private func recordOneSecondVideo() {
         guard let project = currentProject else { return }
+        guard videoManager.isSetupComplete else { return }
         
         Task {
             isRecording = true
@@ -240,7 +259,7 @@ struct CameraView: View {
                 let newSegment = VideoSegment(
                     uri: filename,
                     cameraPosition: videoManager.currentCameraPosition,
-                    order: (currentProject?.segments.count ?? 0) + 1  // 現在のプロジェクトから計算
+                    order: (currentProject?.segments.count ?? 0) + 1
                 )
 
                 // 撮影完了をメイン画面に通知
@@ -298,7 +317,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     }
 }
 
-// 🔧 新規追加: 専用のカメラコンテナビュー
+// 🔧 カメラコンテナビュー
 class CameraContainerView: UIView {
     weak var videoManager: VideoManager?
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -307,7 +326,7 @@ class CameraContainerView: UIView {
         super.layoutSubviews()
         print("🔧 layoutSubviews - Frame: \(bounds)")
         
-        // 🔧 重要: レイアウト完了後にプレビューレイヤーを更新
+        // レイアウト完了後にプレビューレイヤーを更新
         DispatchQueue.main.async {
             self.updatePreviewLayer()
         }
@@ -323,6 +342,12 @@ class CameraContainerView: UIView {
         guard let videoManager = videoManager,
               let newPreviewLayer = videoManager.previewLayer else {
             print("⚠️ VideoManager またはプレビューレイヤーが準備されていません")
+            return
+        }
+        
+        // セットアップ完了を確認
+        guard videoManager.isSetupComplete else {
+            print("⚠️ カメラセットアップが未完了のため、プレビューレイヤー更新をスキップ")
             return
         }
         
@@ -355,14 +380,15 @@ class CameraContainerView: UIView {
             print("⚠️ セッションが実行されていません")
         }
     }
-    // MARK: - Preview
-    struct CameraView_Previews: PreviewProvider {
-        static var previews: some View {
-            CameraView(
-                currentProject: Project(name: "Test Project"),
-                onRecordingComplete: { _ in },
-                onBackToProjects: { }
-            )
-        }
+}
+
+// MARK: - Preview
+struct CameraView_Previews: PreviewProvider {
+    static var previews: some View {
+        CameraView(
+            currentProject: Project(name: "Test Project"),
+            onRecordingComplete: { _ in },
+            onBackToProjects: { }
+        )
     }
 }
