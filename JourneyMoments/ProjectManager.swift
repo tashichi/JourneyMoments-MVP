@@ -1,8 +1,7 @@
 import Foundation
 import AVFoundation
+import UIKit
 import Photos
-import os.log
-
 
 // MARK: - ProjectManager
 // React Native版のプロジェクト管理ロジックと同等
@@ -93,6 +92,52 @@ class ProjectManager: ObservableObject {
         print("📊 Remaining segments in project: \(updatedProject.segments.count)")
         print("🔄 Segment order rebalanced")
     }
+    
+    // MARK: - エクスポート機能（段階的デバッグ版）
+    func exportProject(_ project: Project, completion: @escaping (Bool) -> Void) {
+        print("🧪 [カメラ競合回避版] エクスポート開始")
+        print("📊 プロジェクト: \(project.name)")
+        print("📊 セグメント数: \(project.segments.count)")
+        
+        // Step 1: 基本チェック
+        guard !project.segments.isEmpty else {
+            print("❌ 空のプロジェクト")
+            completion(false)
+            return
+        }
+        print("✅ Step 1: プロジェクト検証完了")
+        
+        // Step 2: Face IDシステムが安定するまで待機
+        print("⏰ Face IDシステム安定化待機開始...")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            print("⏰ 待機完了、権限チェック開始")
+            
+            let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+            print("📸 遅延後の権限状態: \(status.rawValue)")
+            
+            switch status {
+            case .authorized:
+                print("✅ Step 2: 権限許可済み（authorized）")
+                completion(true)
+            case .limited:
+                print("✅ Step 2: 権限許可済み（limited）")
+                completion(true)
+            case .notDetermined:
+                print("⚠️ Step 2: 権限未決定 - リクエストは行わない")
+                completion(false)
+            case .denied:
+                print("❌ Step 2: 権限拒否済み")
+                completion(false)
+            case .restricted:
+                print("❌ Step 2: 権限制限済み")
+                completion(false)
+            @unknown default:
+                print("❌ Step 2: 不明な権限状態")
+                completion(false)
+            }
+        }
+    }
+    
     
     // 🆕 追加: AVComposition作成機能（シームレス再生用）
     func createComposition(for project: Project) async -> AVComposition? {
@@ -199,6 +244,7 @@ class ProjectManager: ObservableObject {
         
         return composition
     }
+    
     // MARK: - 進捗付きComposition作成関数（向き補正修正版）
     func createCompositionWithProgress(
         for project: Project,
@@ -491,157 +537,5 @@ class ProjectManager: ObservableObject {
         saveProjects()
         
         print("✅ All projects deletion completed")
-    }
-}
-// MARK: - エクスポート機能（新規追加）
-extension ProjectManager {
-    
-    private static let exportLogger = Logger(subsystem: "com.tashichi.clipflow", category: "Export")
-    
-    // メインエクスポート関数
-    func exportProject(_ project: Project, completion: @escaping (Bool) -> Void) {
-        Self.exportLogger.info("🎬 エクスポート開始: \(project.name)")
-        Self.exportLogger.info("📊 セグメント数: \(project.segments.count)")
-        
-        Task {
-            do {
-                // Step 1: 写真ライブラリ権限チェック
-                let hasPermission = await checkPhotoLibraryPermission()
-                guard hasPermission else {
-                    Self.exportLogger.error("❌ 写真ライブラリ権限が拒否されました")
-                    await MainActor.run { completion(false) }
-                    return
-                }
-                
-                Self.exportLogger.info("✅ 写真ライブラリ権限確認完了")
-                
-                // Step 2: Composition作成
-                guard let composition = await createComposition(for: project) else {
-                    Self.exportLogger.error("❌ Composition作成失敗")
-                    await MainActor.run { completion(false) }
-                    return
-                }
-                
-                Self.exportLogger.info("✅ Composition作成成功")
-                
-                // Step 3: 安全なエクスポート実行
-                let success = await performSafeExport(composition: composition, project: project)
-                
-                Self.exportLogger.info("📊 エクスポート完了: \(success)")
-                await MainActor.run { completion(success) }
-                
-            } catch {
-                Self.exportLogger.error("❌ エクスポートエラー: \(error.localizedDescription)")
-                await MainActor.run { completion(false) }
-            }
-        }
-    }
-    
-    // 写真ライブラリ権限チェック
-    private func checkPhotoLibraryPermission() async -> Bool {
-        let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-        
-        switch status {
-        case .authorized, .limited:
-            Self.exportLogger.info("📸 写真ライブラリ権限: 既に許可済み")
-            return true
-            
-        case .notDetermined:
-            Self.exportLogger.info("📸 写真ライブラリ権限: リクエスト中...")
-            let newStatus = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
-            let granted = (newStatus == .authorized || newStatus == .limited)
-            Self.exportLogger.info("📸 権限リクエスト結果: \(granted)")
-            return granted
-            
-        case .denied, .restricted:
-            Self.exportLogger.error("📸 写真ライブラリ権限: 拒否または制限")
-            return false
-            
-        @unknown default:
-            Self.exportLogger.error("📸 写真ライブラリ権限: 不明なステータス")
-            return false
-        }
-    }
-    
-    // 安全なエクスポート実行
-    private func performSafeExport(composition: AVComposition, project: Project) async -> Bool {
-        return await withCheckedContinuation { continuation in
-            // 安全なファイル名生成
-            let safeName = project.name
-                .replacingOccurrences(of: "/", with: "-")
-                .replacingOccurrences(of: "\\", with: "-")
-                .replacingOccurrences(of: ":", with: "-")
-                .replacingOccurrences(of: "*", with: "-")
-                .replacingOccurrences(of: "?", with: "-")
-                .replacingOccurrences(of: "\"", with: "-")
-                .replacingOccurrences(of: "<", with: "-")
-                .replacingOccurrences(of: ">", with: "-")
-                .replacingOccurrences(of: "|", with: "-")
-            
-            let fileName = "\(safeName)_\(Date().timeIntervalSince1970).mp4"
-            let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-            
-            Self.exportLogger.info("📁 一時ファイル: \(tempURL.lastPathComponent)")
-            
-            // AVAssetExportSession作成
-            guard let exportSession = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetHighestQuality) else {
-                Self.exportLogger.error("❌ ExportSession作成失敗")
-                continuation.resume(returning: false)
-                return
-            }
-            
-            exportSession.outputURL = tempURL
-            exportSession.outputFileType = .mp4
-            exportSession.shouldOptimizeForNetworkUse = true
-            
-            Self.exportLogger.info("🚀 ExportSession開始")
-            
-            // エクスポート実行
-            exportSession.exportAsynchronously {
-                if exportSession.status == .completed {
-                    Self.exportLogger.info("✅ ExportSession完了")
-                    
-                    // メインスレッドで写真ライブラリに保存
-                    DispatchQueue.main.async {
-                        self.saveToPhotoLibrary(tempURL: tempURL) { success in
-                            continuation.resume(returning: success)
-                        }
-                    }
-                } else {
-                    Self.exportLogger.error("❌ ExportSession失敗: \(exportSession.status.rawValue)")
-                    if let error = exportSession.error {
-                        Self.exportLogger.error("❌ ExportSessionエラー: \(error.localizedDescription)")
-                    }
-                    continuation.resume(returning: false)
-                }
-            }
-        }
-    }
-    
-    // 写真ライブラリ保存（メインスレッド実行）
-    private func saveToPhotoLibrary(tempURL: URL, completion: @escaping (Bool) -> Void) {
-        Self.exportLogger.info("💾 写真ライブラリ保存開始")
-        
-        PHPhotoLibrary.shared().performChanges({
-            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: tempURL)
-        }) { success, error in
-            DispatchQueue.main.async {
-                if success {
-                    Self.exportLogger.info("✅ 写真ライブラリ保存成功")
-                    
-                    // 一時ファイル削除
-                    try? FileManager.default.removeItem(at: tempURL)
-                    Self.exportLogger.info("🗑️ 一時ファイル削除完了")
-                    
-                    completion(true)
-                } else {
-                    Self.exportLogger.error("❌ 写真ライブラリ保存失敗")
-                    if let error = error {
-                        Self.exportLogger.error("❌ 保存エラー: \(error.localizedDescription)")
-                    }
-                    completion(false)
-                }
-            }
-        }
     }
 }

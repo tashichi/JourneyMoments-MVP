@@ -282,10 +282,25 @@ struct MainView: View {
             // 上部：プロジェクト情報
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(project.name)
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .lineLimit(1)
+                    HStack {
+                        Text(project.name)
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        // 編集・削除アイコン
+                        HStack(spacing: 8) {
+                            Image(systemName: "pencil")
+                                .font(.caption2)
+                                .foregroundColor(.gray.opacity(0.7))
+                            
+                            Image(systemName: "trash")
+                                .font(.caption2)
+                                .foregroundColor(.gray.opacity(0.7))
+                        }
+                    }
                     
                     Text("\(project.segmentCount) segments")
                         .font(.caption)
@@ -513,7 +528,10 @@ struct MainView: View {
             completion(true)
         case .notDetermined:
             PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
-                completion(newStatus == .authorized)
+                // 権限許可直後の安全な処理
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    completion(newStatus == .authorized)
+                }
             }
         case .denied, .restricted:
             completion(false)
