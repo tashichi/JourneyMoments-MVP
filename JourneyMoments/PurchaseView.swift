@@ -81,39 +81,7 @@ struct PurchaseView: View {
                         .padding(.horizontal)
                 }
                 
-                // テストモード表示（デバッグ用）
-                if purchaseManager.isTestMode {
-                    VStack(spacing: 8) {
-                        Text("🧪 TEST MODE")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.orange)
-                        
-                        HStack(spacing: 12) {
-                            Button("Test Purchase") {
-                                purchaseManager.simulatePurchase()
-                                presentationMode.wrappedValue.dismiss()
-                            }
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.green.opacity(0.8))
-                            .foregroundColor(.white)
-                            .cornerRadius(6)
-                            
-                            Button("Reset") {
-                                purchaseManager.resetPurchase()
-                            }
-                            .font(.caption)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.red.opacity(0.8))
-                            .foregroundColor(.white)
-                            .cornerRadius(6)
-                        }
-                    }
-                    .padding(.top, 8)
-                }
+              
                 
                 Spacer()
             }

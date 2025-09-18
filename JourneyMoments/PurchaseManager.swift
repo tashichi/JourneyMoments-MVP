@@ -13,8 +13,6 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     private let productID = "com.tashichi.clipflow.fullversion"
     private let purchaseKey = "ClipFlowFullVersionPurchased"
     
-    // MARK: - テスト用フラグ（本番時は削除）
-    @Published var isTestMode: Bool = false  // true → false に変更
     // MARK: - Initialization
     override init() {
         super.init()
@@ -104,15 +102,8 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     }
     
     // MARK: - 購入処理
-    
+
     func purchase() {
-        // テストモードの場合
-        if isTestMode {
-            simulatePurchase()
-            return
-        }
-        
-        // 実際の購入処理
         guard let product = product else {
             errorMessage = "商品情報がありません"
             return
@@ -131,20 +122,13 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         
         print("購入開始: \(product.localizedTitle)")
     }
-    
+
     func restorePurchases() {
-        // テストモードの場合は何もしない
-        if isTestMode {
-            print("テストモード: 復元は実装されていません")
-            return
-        }
-        
         isLoading = true
         errorMessage = nil
         SKPaymentQueue.default().restoreCompletedTransactions()
         print("購入復元開始")
     }
-    
     // MARK: - SKPaymentTransactionObserver
     
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
@@ -217,20 +201,7 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         return formatter.string(from: product.price) ?? "$2.99"
     }
     
-    // MARK: - テスト用機能（本番時は削除予定）
+ 
     
-    func simulatePurchase() {
-        savePurchaseState(true)
-        print("テスト購入をシミュレートしました")
-    }
-    
-    func resetPurchase() {
-        savePurchaseState(false)
-        print("テスト購入をリセットしました")
-    }
-    
-    func toggleTestMode() {
-        isTestMode.toggle()
-        print("テストモード: \(isTestMode ? "ON" : "OFF")")
-    }
+   
 }

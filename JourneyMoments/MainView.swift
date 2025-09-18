@@ -114,8 +114,7 @@ struct MainView: View {
         }
         .alert("Project Limit Reached", isPresented: $showProjectLimitAlert) {
             Button("Upgrade to Full Version") {
-                purchaseManager.simulatePurchase() // 暫定的に購入シミュレーション
-                // 後で本物の購入画面に変更予定
+                showPurchaseView = true
             }
             Button("Cancel", role: .cancel) { }
         } message: {
@@ -241,21 +240,6 @@ struct MainView: View {
                 .cornerRadius(8)
             
             Spacer()
-            
-            // テスト用ボタン（後で削除予定）
-            Button(purchaseManager.isPurchased ? "Reset" : "Simulate Purchase") {
-                if purchaseManager.isPurchased {
-                    purchaseManager.resetPurchase()
-                } else {
-                    purchaseManager.simulatePurchase()
-                }
-            }
-            .font(.caption2)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(6)
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 10)
