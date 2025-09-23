@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		8D7D78AD2E81978100766B8E /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D7D78AC2E81978100766B8E /* StoreKit.framework */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		8D7F036D2E4975D30090A622 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,6 +28,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8D7D78AC2E81978100766B8E /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		8D7F035F2E4975D10090A622 /* JourneyMoments.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JourneyMoments.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8D7F036C2E4975D30090A622 /* JourneyMomentsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JourneyMomentsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8D7F03762E4975D30090A622 /* JourneyMomentsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JourneyMomentsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -65,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8D7D78AD2E81978100766B8E /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,12 +91,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8D7D78AB2E81978100766B8E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8D7D78AC2E81978100766B8E /* StoreKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		8D7F03562E4975D10090A622 = {
 			isa = PBXGroup;
 			children = (
 				8D7F03612E4975D10090A622 /* JourneyMoments */,
 				8D7F036F2E4975D30090A622 /* JourneyMomentsTests */,
 				8D7F03792E4975D30090A622 /* JourneyMomentsUITests */,
+				8D7D78AB2E81978100766B8E /* Frameworks */,
 				8D7F03602E4975D10090A622 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -416,10 +431,10 @@
 				INFOPLIST_FILE = JourneyMoments/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClipFlow;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
-				INFOPLIST_KEY_NSCameraUsageDescription = "1秒動画を撮影するためにカメラを使用します";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to record 1-second video clips";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "動画の音声を録音するためにマイクを使用します";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save exported videos to your photo library";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access is required to record audio with video clips";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Photo library access is required to export and save your video compilations";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access photo library to save exported videos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -452,10 +467,10 @@
 				INFOPLIST_FILE = JourneyMoments/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ClipFlow;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
-				INFOPLIST_KEY_NSCameraUsageDescription = "1秒動画を撮影するためにカメラを使用します";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera access is required to record 1-second video clips";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "動画の音声を録音するためにマイクを使用します";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Save exported videos to your photo library";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Microphone access is required to record audio with video clips";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Photo library access is required to export and save your video compilations";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Access photo library to save exported videos";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

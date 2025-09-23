@@ -15,16 +15,16 @@ struct CameraView: View {
     
     var body: some View {
         ZStack {
-            // カメラプレビュー背景
+            // Camera preview background
             Color.black
                 .ignoresSafeArea(.all)
             
-            // 修正: セットアップ完了を確実に待ってからプレビュー表示
+            // Fixed: Ensure setup completion before preview display
             if videoManager.cameraPermissionGranted && videoManager.isSetupComplete {
                 CameraPreviewRepresentable(videoManager: videoManager)
                     .ignoresSafeArea(.all)
             } else if videoManager.cameraPermissionGranted && !videoManager.isSetupComplete {
-                // セットアップ中の表示
+                // Setup in progress display
                 VStack(spacing: 20) {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -35,7 +35,7 @@ struct CameraView: View {
                         .font(.caption)
                 }
             } else {
-                // 権限なしの表示
+                // No permission display
                 VStack(spacing: 20) {
                     Image(systemName: "camera.fill")
                         .font(.system(size: 60))
@@ -46,18 +46,18 @@ struct CameraView: View {
                 }
             }
             
-            // オーバーレイUI
+            // Overlay UI
             VStack {
-                // ヘッダー
+                // Header
                 headerView
                 
                 Spacer()
                 
-                // 撮影コントロール
+                // Recording controls
                 controlsView
             }
             
-            // 録画中表示
+            // Recording status display
             if isRecording {
                 VStack {
                     Spacer()
@@ -66,7 +66,7 @@ struct CameraView: View {
                 }
             }
             
-            // 成功トースト表示
+            // Success toast display
             if showSuccessToast {
                 VStack {
                     Spacer()
@@ -93,7 +93,7 @@ struct CameraView: View {
     private var headerView: some View {
         VStack(spacing: 10) {
             HStack {
-                // 戻るボタン
+                // Back button
                 Button(action: onBackToProjects) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
@@ -108,7 +108,7 @@ struct CameraView: View {
                 
                 Spacer()
                 
-                // カメラ切り替えボタン
+                // Camera toggle button
                 Button(action: toggleCamera) {
                     Image(systemName: "camera.rotate.fill")
                         .font(.title2)
@@ -121,7 +121,7 @@ struct CameraView: View {
             }
             .padding(.horizontal, 20)
             
-            // プロジェクト情報
+            // Project information
             if let project = currentProject {
                 VStack(spacing: 4) {
                     Text(project.name)
@@ -152,7 +152,7 @@ struct CameraView: View {
             HStack {
                 Spacer()
                 
-                // 撮影ボタン
+                // Recording button
                 Button(action: recordOneSecondVideo) {
                     ZStack {
                         Circle()
@@ -220,18 +220,18 @@ struct CameraView: View {
     // MARK: - Functions
     
     private func setupCamera() {
-        print("🔧 CameraView setupCamera() 開始")
+        print("CameraView setupCamera() started")
         Task {
-            print("🔧 権限リクエスト開始")
+            print("Permission request started")
             await videoManager.requestCameraPermission()
-            print("🔧 権限リクエスト完了: \(videoManager.cameraPermissionGranted)")
+            print("Permission request completed: \(videoManager.cameraPermissionGranted)")
             
             if videoManager.cameraPermissionGranted {
-                print("🔧 カメラセットアップ開始")
+                print("Camera setup started")
                 await videoManager.setupCamera()
-                print("🔧 カメラセットアップ完了: \(videoManager.isSetupComplete)")
+                print("Camera setup completed: \(videoManager.isSetupComplete)")
             } else {
-                print("❌ カメラ権限が拒否されました")
+                print("Camera permission denied")
             }
         }
     }
@@ -252,38 +252,38 @@ struct CameraView: View {
             do {
                 let videoURL = try await videoManager.recordOneSecond()
                 
-                // ファイル名のみを保存（相対パス）
+                // Save filename only (relative path)
                 let filename = videoURL.lastPathComponent
                 
-                // 新しいセグメントを作成
+                // Create new segment
                 let newSegment = VideoSegment(
                     uri: filename,
                     cameraPosition: videoManager.currentCameraPosition,
                     order: (currentProject?.segments.count ?? 0) + 1
                 )
 
-                // 撮影完了をメイン画面に通知
+                // Notify main screen of recording completion
                 onRecordingComplete(newSegment)
 
-                // 成功トースト表示
+                // Show success toast
                 successMessage = "✅ Segment \((currentProject?.segments.count ?? 0) + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
                 }
                 
-                // 1.5秒後に自動で消す
+                // Auto-hide after 1.5 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showSuccessToast = false
                     }
                 }
                 
-                print("✅ Segment saved: \(filename) - Segment \(project.segments.count + 1) recorded")
+                print("Segment saved: \(filename) - Segment \(project.segments.count + 1) recorded")
                 
             } catch {
                 alertMessage = "Recording failed: \(error.localizedDescription)"
                 showingAlert = true
-                print("❌ Recording error: \(error)")
+                print("Recording error: \(error)")
             }
             
             isRecording = false
@@ -296,88 +296,88 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     let videoManager: VideoManager
     
     func makeUIView(context: Context) -> UIView {
-        print("🔧 makeUIView 開始")
+        print("makeUIView started")
         let view = CameraContainerView()
         view.backgroundColor = .black
         view.videoManager = videoManager
-        print("🔧 makeUIView 完了")
+        print("makeUIView completed")
         return view
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        print("🔧 updateUIView 開始 - Frame: \(uiView.bounds)")
+        print("updateUIView started - Frame: \(uiView.bounds)")
         
         guard let containerView = uiView as? CameraContainerView else {
-            print("❌ CameraContainerView キャスト失敗")
+            print("CameraContainerView cast failed")
             return
         }
         
         containerView.updatePreviewLayer()
-        print("🔧 updateUIView 完了")
+        print("updateUIView completed")
     }
 }
 
-// 🔧 カメラコンテナビュー
+// Camera Container View
 class CameraContainerView: UIView {
     weak var videoManager: VideoManager?
     private var previewLayer: AVCaptureVideoPreviewLayer?
     
     override func layoutSubviews() {
         super.layoutSubviews()
-        print("🔧 layoutSubviews - Frame: \(bounds)")
+        print("layoutSubviews - Frame: \(bounds)")
         
-        // レイアウト完了後にプレビューレイヤーを更新
+        // Update preview layer after layout completion
         DispatchQueue.main.async {
             self.updatePreviewLayer()
         }
     }
     
     func updatePreviewLayer() {
-        // bounds がゼロの場合は処理しない
+        // Skip processing if bounds are zero
         guard bounds.width > 0 && bounds.height > 0 else {
-            print("⚠️ View bounds がゼロのため、プレビューレイヤー更新をスキップ")
+            print("Skipping preview layer update due to zero bounds")
             return
         }
         
         guard let videoManager = videoManager,
               let newPreviewLayer = videoManager.previewLayer else {
-            print("⚠️ VideoManager またはプレビューレイヤーが準備されていません")
+            print("VideoManager or preview layer not ready")
             return
         }
         
-        // セットアップ完了を確認
+        // Confirm setup completion
         guard videoManager.isSetupComplete else {
-            print("⚠️ カメラセットアップが未完了のため、プレビューレイヤー更新をスキップ")
+            print("Skipping preview layer update - camera setup incomplete")
             return
         }
         
-        // 既に同じプレビューレイヤーが設定済みの場合はスキップ
+        // Skip if same preview layer is already set
         if previewLayer === newPreviewLayer {
-            // フレームのみ更新
+            // Update frame only
             newPreviewLayer.frame = bounds
-            print("🔧 既存プレビューレイヤーのフレームのみ更新")
+            print("Updated existing preview layer frame only")
             return
         }
         
-        // 既存のプレビューレイヤーを削除
+        // Remove existing preview layer
         if let existingLayer = previewLayer {
             existingLayer.removeFromSuperlayer()
-            print("🔧 既存のプレビューレイヤーを削除")
+            print("Removed existing preview layer")
         }
         
-        // 新しいプレビューレイヤーを設定
+        // Set new preview layer
         newPreviewLayer.frame = bounds
         newPreviewLayer.videoGravity = .resizeAspectFill
         layer.addSublayer(newPreviewLayer)
         previewLayer = newPreviewLayer
         
-        print("✅ プレビューレイヤー追加完了 - Frame: \(bounds)")
+        print("Preview layer added successfully - Frame: \(bounds)")
         
-        // セッション状態確認
+        // Check session status
         if let session = newPreviewLayer.session, session.isRunning {
-            print("✅ セッションは実行中です")
+            print("Session is running")
         } else {
-            print("⚠️ セッションが実行されていません")
+            print("Session is not running")
         }
     }
 }
@@ -392,3 +392,4 @@ struct CameraView_Previews: PreviewProvider {
         )
     }
 }
+

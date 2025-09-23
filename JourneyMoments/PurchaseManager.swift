@@ -18,45 +18,45 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         super.init()
         loadPurchaseState()
         
-        // StoreKit監視開始
+        // Start StoreKit monitoring
         SKPaymentQueue.default().add(self)
         
-        // 商品情報を読み込み
+        // Load product information
         loadProduct()
     }
     
     deinit {
-        // StoreKit監視停止
+        // Stop StoreKit monitoring
         SKPaymentQueue.default().remove(self)
     }
     
-    // MARK: - 購入状態管理
+    // MARK: - Purchase State Management
     
     private func loadPurchaseState() {
         isPurchased = UserDefaults.standard.bool(forKey: purchaseKey)
-        print("購入状態読み込み: \(isPurchased ? "購入済み" : "無料版")")
+        print("Purchase state loaded: \(isPurchased ? "Purchased" : "Free version")")
     }
     
     private func savePurchaseState(_ purchased: Bool) {
         isPurchased = purchased
         UserDefaults.standard.set(purchased, forKey: purchaseKey)
-        print("購入状態保存: \(purchased ? "購入済み" : "無料版")")
+        print("Purchase state saved: \(purchased ? "Purchased" : "Free version")")
     }
     
-    // MARK: - 機能制限チェック
+    // MARK: - Feature Restriction Checks
     
     func canCreateNewProject(currentProjectCount: Int) -> Bool {
         if isPurchased {
-            return true // 購入済みなら無制限
+            return true // Unlimited if purchased
         }
-        return currentProjectCount < 3 // 無料版は3個まで
+        return currentProjectCount < 3 // Free version limited to 3
     }
     
     func canExportVideo() -> Bool {
-        return isPurchased // 購入済みのみエクスポート可能
+        return isPurchased // Export only available for purchased version
     }
     
-    // MARK: - StoreKit商品管理
+    // MARK: - StoreKit Product Management
     
     func loadProduct() {
         guard !isLoading else { return }
@@ -68,27 +68,31 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         request.delegate = self
         request.start()
         
-        print("商品情報を読み込み中: \(productID)")
+        print("Loading product information: \(productID)")
     }
     
     // MARK: - SKProductsRequestDelegate
     
     func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
+        // デバッグ用ログ追加
+            print("商品ID: \(productID)")
+            print("商品取得結果: \(response.products)")
+            print("無効な商品ID: \(response.invalidProductIdentifiers)")
         DispatchQueue.main.async {
             self.isLoading = false
             
             if let product = response.products.first {
                 self.product = product
                 let currencySymbol = product.priceLocale.currencySymbol ?? "$"
-                print("商品情報取得成功: \(product.localizedTitle) - \(currencySymbol)\(product.price)")
+                print("Product information loaded successfully: \(product.localizedTitle) - \(currencySymbol)\(product.price)")
             } else {
-                self.errorMessage = "商品情報を取得できませんでした"
-                print("エラー: 商品が見つかりません")
+                self.errorMessage = "Unable to load product information"
+                print("Error: Product not found")
             }
             
-            // 無効な商品IDがある場合
+            // Handle invalid product IDs
             if !response.invalidProductIdentifiers.isEmpty {
-                print("無効な商品ID: \(response.invalidProductIdentifiers)")
+                print("Invalid product IDs: \(response.invalidProductIdentifiers)")
             }
         }
     }
@@ -96,21 +100,32 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     func request(_ request: SKRequest, didFailWithError error: Error) {
         DispatchQueue.main.async {
             self.isLoading = false
-            self.errorMessage = "ネットワークエラー: \(error.localizedDescription)"
-            print("商品情報取得エラー: \(error)")
+            self.errorMessage = "Network error: \(error.localizedDescription)"
+            print("Product information loading error: \(error)")
         }
     }
     
-    // MARK: - 購入処理
+    // MARK: - Purchase Processing
 
     func purchase() {
+        // If product information is not available, try reloading
         guard let product = product else {
-            errorMessage = "商品情報がありません"
+            print("Product information not available, attempting reload")
+            loadProduct()
+            
+            // Retry after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                if self.product != nil {
+                    self.purchase()
+                } else {
+                    self.errorMessage = "Unable to load product information. Please try again later."
+                }
+            }
             return
         }
         
         guard SKPaymentQueue.canMakePayments() else {
-            errorMessage = "この端末では購入できません"
+            errorMessage = "Purchases are not available on this device"
             return
         }
         
@@ -120,15 +135,16 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         let payment = SKPayment(product: product)
         SKPaymentQueue.default().add(payment)
         
-        print("購入開始: \(product.localizedTitle)")
+        print("Purchase started: \(product.localizedTitle)")
     }
 
     func restorePurchases() {
         isLoading = true
         errorMessage = nil
         SKPaymentQueue.default().restoreCompletedTransactions()
-        print("購入復元開始")
+        print("Restore purchases started")
     }
+    
     // MARK: - SKPaymentTransactionObserver
     
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
@@ -141,11 +157,11 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             case .failed:
                 handlePurchaseFailure(transaction)
             case .purchasing:
-                print("購入処理中...")
+                print("Purchase in progress...")
             case .deferred:
-                print("購入が保留されています")
+                print("Purchase is pending")
             default:
-                print("未知の取引状態")
+                print("Unknown transaction state")
             }
         }
     }
@@ -155,10 +171,10 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             self.savePurchaseState(true)
             self.isLoading = false
             self.errorMessage = nil
-            print("購入成功: \(transaction.payment.productIdentifier)")
+            print("Purchase successful: \(transaction.payment.productIdentifier)")
         }
         
-        // 取引完了
+        // Complete transaction
         SKPaymentQueue.default().finishTransaction(transaction)
     }
     
@@ -169,27 +185,27 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             if let error = transaction.error as? SKError {
                 switch error.code {
                 case .paymentCancelled:
-                    self.errorMessage = nil // キャンセルはエラー表示しない
-                    print("購入キャンセル")
+                    self.errorMessage = nil // Don't show error for cancellation
+                    print("Purchase cancelled")
                 case .paymentNotAllowed:
-                    self.errorMessage = "この端末では購入できません"
+                    self.errorMessage = "Purchases are not available on this device"
                 case .paymentInvalid:
-                    self.errorMessage = "購入情報が無効です"
+                    self.errorMessage = "Purchase information is invalid"
                 case .storeProductNotAvailable:
-                    self.errorMessage = "この商品は利用できません"
+                    self.errorMessage = "This product is not available"
                 default:
-                    self.errorMessage = "購入エラー: \(error.localizedDescription)"
+                    self.errorMessage = "Purchase error: \(error.localizedDescription)"
                 }
             } else {
-                self.errorMessage = "購入処理でエラーが発生しました"
+                self.errorMessage = "An error occurred during purchase processing"
             }
         }
         
-        // 失敗した取引も完了させる
+        // Complete failed transaction
         SKPaymentQueue.default().finishTransaction(transaction)
     }
     
-    // MARK: - 価格表示用のヘルパー関数
+    // MARK: - Helper Functions for Price Display
     
     func formattedPrice() -> String {
         guard let product = product else { return "$2.99" }
@@ -200,8 +216,4 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
         
         return formatter.string(from: product.price) ?? "$2.99"
     }
-    
- 
-    
-   
 }

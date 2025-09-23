@@ -13,25 +13,25 @@ struct ProjectListView: View {
     @State private var showDeleteAlert = false
     @State private var projectToDelete: Project?
     
-    // 名前変更機能の状態管理
+    // Rename functionality state management
     @State private var showRenameAlert = false
     @State private var projectToRename: Project?
     @State private var newProjectName: String = ""
     
-    // エクスポート状態管理
+    // Export state management
     @State private var exportingProjects: Set<Int> = []
     
     var body: some View {
         ZStack {
-            // 画面全体の黒背景
+            // Full screen black background
             Color.black
                 .ignoresSafeArea(.all)
             
             VStack(spacing: 0) {
-                // ヘッダー
+                // Header
                 headerView
                 
-                // プロジェクト一覧 or 空状態
+                // Project list or empty state
                 if projects.isEmpty {
                     emptyStateView
                 } else {
@@ -39,7 +39,7 @@ struct ProjectListView: View {
                 }
             }
         }
-        // 削除確認アラート
+        // Delete confirmation alert
         .alert("Delete Project", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 if let project = projectToDelete {
@@ -55,7 +55,7 @@ struct ProjectListView: View {
                 Text("Delete \"\(project.name)\"?\nThis action cannot be undone.")
             }
         }
-        // 名前変更アラート
+        // Rename alert
         .alert("Rename Project", isPresented: $showRenameAlert) {
             TextField("Project Name", text: $newProjectName)
                 .textInputAutocapitalization(.words)
@@ -64,7 +64,7 @@ struct ProjectListView: View {
                 if let project = projectToRename, !newProjectName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     let trimmedName = newProjectName.trimmingCharacters(in: .whitespacesAndNewlines)
                     onRenameProject(project, trimmedName)
-                    print("✅ Project renamed: \(project.name) → \(trimmedName)")
+                    print("Project renamed: \(project.name) → \(trimmedName)")
                 }
                 resetRenameState()
             }
@@ -80,7 +80,7 @@ struct ProjectListView: View {
         }
     }
     
-    // MARK: - ヘッダー
+    // MARK: - Header
     private var headerView: some View {
         VStack(spacing: 10) {
             Text("ClipFlow")
@@ -105,7 +105,7 @@ struct ProjectListView: View {
         .padding(.bottom, 20)
     }
     
-    // MARK: - 空状態
+    // MARK: - Empty State
     private var emptyStateView: some View {
         VStack(spacing: 20) {
             Spacer()
@@ -130,16 +130,16 @@ struct ProjectListView: View {
         .padding(.horizontal, 40)
     }
     
-    // 🔧 修正: プロジェクト一覧（ボタンサイズ統一）
+    // Project List (Unified button sizes)
     private var projectListView: some View {
         List {
             ForEach(projects) { project in
                 VStack(alignment: .leading, spacing: 12) {
-                    // プロジェクト情報（名前タップで編集可能）
+                    // Project info (name tappable for editing)
                     VStack(alignment: .leading, spacing: 4) {
-                        // プロジェクト名をタップ可能にする
+                        // Make project name tappable
                         Button(action: {
-                            print("🏷️ Project name tapped: \(project.name)")
+                            print("Project name tapped: \(project.name)")
                             startRenamingProject(project)
                         }) {
                             HStack {
@@ -148,7 +148,7 @@ struct ProjectListView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.white)
                                 
-                                // 編集アイコン表示
+                                // Show edit icon
                                 Image(systemName: "pencil")
                                     .font(.caption)
                                     .foregroundColor(.gray)
@@ -176,11 +176,11 @@ struct ProjectListView: View {
                         }
                     }
                     
-                    // 下部ボタンエリア（Rec | Play | Export）
+                    // Bottom button area (Rec | Play | Export)
                        HStack(spacing: 0) {
-                           // 撮影ボタン
+                           // Record button
                            Button {
-                               print("🔴 Record button tapped: \(project.name)")
+                               print("Record button tapped: \(project.name)")
                                onOpenProject(project)
                            } label: {
                                HStack(spacing: 6) {
@@ -196,9 +196,9 @@ struct ProjectListView: View {
                            }
                            .buttonStyle(PlainButtonStyle())
                            
-                           // 再生ボタン
+                           // Play button
                            Button {
-                               print("🔵 Play button tapped: \(project.name)")
+                               print("Play button tapped: \(project.name)")
                                onPlayProject(project)
                            } label: {
                                HStack(spacing: 6) {
@@ -216,9 +216,9 @@ struct ProjectListView: View {
                            .disabled(project.segmentCount == 0)
                            .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
                            
-                           // エクスポートボタン
+                           // Export button
                            Button {
-                               print("🟠 Export button tapped: \(project.name)")
+                               print("Export button tapped: \(project.name)")
                                handleExportProject(project)
                            } label: {
                                HStack(spacing: 6) {
@@ -254,10 +254,10 @@ struct ProjectListView: View {
                 )
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
-                // スワイプアクション（削除のみ）
+                // Swipe actions (delete only)
                 .swipeActions(edge: .trailing) {
                     Button("Delete") {
-                        print("🔍 Delete target: \(project.name)")
+                        print("Delete target: \(project.name)")
                         projectToDelete = project
                         showDeleteAlert = true
                     }
@@ -270,17 +270,17 @@ struct ProjectListView: View {
         .listStyle(PlainListStyle())
     }
     
-    // エクスポート処理
+    // Export processing
     private func handleExportProject(_ project: Project) {
-        // エクスポート中状態に設定
+        // Set exporting state
         exportingProjects.insert(project.id)
         
-        // エクスポート完了時の処理
+        // Handle export completion
         Task {
-            // エクスポート処理を実行（メイン画面に委譲）
+            // Execute export process (delegate to main screen)
             onExportProject(project)
             
-            // 2秒後にエクスポート中状態を解除（実際の完了は別途処理）
+            // Release exporting state after 2 seconds (actual completion handled separately)
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             await MainActor.run {
                 exportingProjects.remove(project.id)
@@ -288,10 +288,10 @@ struct ProjectListView: View {
         }
     }
     
-    // 名前変更関連の関数
+    // Rename related functions
     private func startRenamingProject(_ project: Project) {
         projectToRename = project
-        newProjectName = project.name  // 現在の名前を初期値として設定
+        newProjectName = project.name  // Set current name as initial value
         showRenameAlert = true
     }
     
@@ -301,7 +301,7 @@ struct ProjectListView: View {
         showRenameAlert = false
     }
 
-    // formatDate関数
+    // formatDate function
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd"
@@ -309,7 +309,7 @@ struct ProjectListView: View {
     }
 }
 
-// MARK: - ProjectRowView（既存のまま - 未使用だが保持）
+// MARK: - ProjectRowView (existing as is - unused but retained)
 struct ProjectRowView: View {
     let project: Project
     let onOpen: () -> Void
@@ -317,7 +317,7 @@ struct ProjectRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // プロジェクト情報
+            // Project info
             VStack(alignment: .leading, spacing: 4) {
                 Text(project.name)
                     .font(.headline)
@@ -341,9 +341,9 @@ struct ProjectRowView: View {
                 }
             }
             
-            // ボタン
+            // Buttons
             HStack(spacing: 12) {
-                // 撮影ボタン
+                // Record button
                 Button(action: onOpen) {
                     HStack(spacing: 4) {
                         Image(systemName: "camera.fill")
@@ -358,7 +358,7 @@ struct ProjectRowView: View {
                     .cornerRadius(12)
                 }
                 
-                // 再生ボタン（セグメントがある場合のみ）
+                // Play button (only if segments exist)
                 if project.segmentCount > 0 {
                     Button(action: onPlay) {
                         HStack(spacing: 4) {

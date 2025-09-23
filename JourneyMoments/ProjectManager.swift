@@ -4,7 +4,7 @@ import UIKit
 import Photos
 
 // MARK: - ProjectManager
-// React Native版のプロジェクト管理ロジックと同等
+// Equivalent to React Native version project management logic
 class ProjectManager: ObservableObject {
     @Published var projects: [Project] = []
     
@@ -15,9 +15,9 @@ class ProjectManager: ObservableObject {
         loadProjects()
     }
     
-    // MARK: - プロジェクト操作
+    // MARK: - Project Operations
     
-    // 新規プロジェクト作成 (React Native版の createNewProject と同等)
+    // Create new project (equivalent to React Native createNewProject)
     func createNewProject() -> Project {
         let projectName = "Project \(projects.count + 1)"
         let newProject = Project(name: projectName)
@@ -25,22 +25,22 @@ class ProjectManager: ObservableObject {
         projects.append(newProject)
         saveProjects()
         
-        print("✅ New project created: \(projectName)")
+        print("New project created: \(projectName)")
         return newProject
     }
     
-    // プロジェクト更新 (React Native版のプロジェクト更新と同等)
+    // Update project (equivalent to React Native project update)
     func updateProject(_ updatedProject: Project) {
         if let index = projects.firstIndex(where: { $0.id == updatedProject.id }) {
             projects[index] = updatedProject
             saveProjects()
-            print("✅ Project updated: \(updatedProject.name), Segments: \(updatedProject.segmentCount)")
+            print("Project updated: \(updatedProject.name), Segments: \(updatedProject.segmentCount)")
         }
     }
     
-    // プロジェクト名変更機能
+    // Project rename functionality
     func renameProject(_ project: Project, newName: String) {
-        print("🏷️ Project rename started: \(project.name) → \(newName)")
+        print("Project rename started: \(project.name) → \(newName)")
         
         if let index = projects.firstIndex(where: { $0.id == project.id }) {
             var updatedProject = projects[index]
@@ -48,124 +48,124 @@ class ProjectManager: ObservableObject {
             projects[index] = updatedProject
             saveProjects()
             
-            print("✅ Project renamed successfully: \(project.name) → \(newName)")
+            print("Project renamed successfully: \(project.name) → \(newName)")
         } else {
-            print("❌ Project not found for rename: \(project.name)")
+            print("Project not found for rename: \(project.name)")
         }
     }
     
-    // セグメント削除機能
+    // Segment deletion functionality
     func deleteSegment(from project: Project, segment: VideoSegment) {
-        print("🗑️ Segment deletion started: Project \(project.name), Segment \(segment.order)")
+        print("Segment deletion started: Project \(project.name), Segment \(segment.order)")
         
         guard let projectIndex = projects.firstIndex(where: { $0.id == project.id }) else {
-            print("❌ Project not found for segment deletion: \(project.name)")
+            print("Project not found for segment deletion: \(project.name)")
             return
         }
         
         var updatedProject = projects[projectIndex]
         
-        // 1. セグメントが2つ以上ある場合のみ削除可能
+        // 1. Only allow deletion if there are 2 or more segments
         guard updatedProject.segments.count > 1 else {
-            print("❌ Cannot delete last segment from project: \(project.name)")
+            print("Cannot delete last segment from project: \(project.name)")
             return
         }
         
-        // 2. 物理ファイル削除
+        // 2. Delete physical file
         deleteVideoFile(for: segment)
         
-        // 3. プロジェクトからセグメントを削除
+        // 3. Remove segment from project
         updatedProject.segments.removeAll { $0.id == segment.id }
         
-        // 4. セグメントの順序を再調整（削除後の連続性を保つ）
+        // 4. Reorder segments (maintain continuity after deletion)
         updatedProject.segments = updatedProject.segments.enumerated().map { index, seg in
             var updatedSegment = seg
             updatedSegment.order = index + 1
             return updatedSegment
         }
         
-        // 5. プロジェクトを更新して保存
+        // 5. Update and save project
         projects[projectIndex] = updatedProject
         saveProjects()
         
-        print("✅ Segment deleted successfully: \(segment.order)")
-        print("📊 Remaining segments in project: \(updatedProject.segments.count)")
-        print("🔄 Segment order rebalanced")
+        print("Segment deleted successfully: \(segment.order)")
+        print("Remaining segments in project: \(updatedProject.segments.count)")
+        print("Segment order rebalanced")
     }
     
-    // MARK: - エクスポート機能（段階的デバッグ版）
+    // MARK: - Export Functionality (Step-by-step debug version)
     func exportProject(_ project: Project, completion: @escaping (Bool) -> Void) {
-        print("🧪 [カメラ競合回避版] エクスポート開始")
-        print("📊 プロジェクト: \(project.name)")
-        print("📊 セグメント数: \(project.segments.count)")
+        print("[Camera Conflict Avoidance] Export started")
+        print("Project: \(project.name)")
+        print("Segment count: \(project.segments.count)")
         
-        // Step 1: 基本チェック
+        // Step 1: Basic check
         guard !project.segments.isEmpty else {
-            print("❌ 空のプロジェクト")
+            print("Empty project")
             completion(false)
             return
         }
-        print("✅ Step 1: プロジェクト検証完了")
+        print("Step 1: Project validation completed")
         
-        // Step 2: Face IDシステムが安定するまで待機
-        print("⏰ Face IDシステム安定化待機開始...")
+        // Step 2: Wait for Face ID system stabilization
+        print("Face ID system stabilization wait started...")
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            print("⏰ 待機完了、権限チェック開始")
+            print("Wait completed, permission check started")
             
             let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
-            print("📸 遅延後の権限状態: \(status.rawValue)")
+            print("Permission status after delay: \(status.rawValue)")
             
             switch status {
             case .authorized:
-                print("✅ Step 2: 権限許可済み（authorized）")
+                print("Step 2: Permission granted (authorized)")
                 completion(true)
             case .limited:
-                print("✅ Step 2: 権限許可済み（limited）")
+                print("Step 2: Permission granted (limited)")
                 completion(true)
             case .notDetermined:
-                print("⚠️ Step 2: 権限未決定 - リクエストは行わない")
+                print("Step 2: Permission undetermined - will not request")
                 completion(false)
             case .denied:
-                print("❌ Step 2: 権限拒否済み")
+                print("Step 2: Permission denied")
                 completion(false)
             case .restricted:
-                print("❌ Step 2: 権限制限済み")
+                print("Step 2: Permission restricted")
                 completion(false)
             @unknown default:
-                print("❌ Step 2: 不明な権限状態")
+                print("Step 2: Unknown permission status")
                 completion(false)
             }
         }
     }
     
     
-    // 🆕 追加: AVComposition作成機能（シームレス再生用）
+    // Add: AVComposition creation functionality (for seamless playback)
     func createComposition(for project: Project) async -> AVComposition? {
-        print("🎬 Creating composition for project: \(project.name)")
-        print("📊 Total segments: \(project.segments.count)")
+        print("Creating composition for project: \(project.name)")
+        print("Total segments: \(project.segments.count)")
         
         let composition = AVMutableComposition()
         
         guard !project.segments.isEmpty else {
-            print("❌ No segments to compose")
+            print("No segments to compose")
             return nil
         }
         
-        // 動画トラックと音声トラックを作成
+        // Create video and audio tracks
         guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
               let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            print("❌ Failed to create composition tracks")
+            print("Failed to create composition tracks")
             return nil
         }
         
         var currentTime = CMTime.zero
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
-        // セグメントを順序通りに処理
+        // Process segments in order
         let sortedSegments = project.segments.sorted { $0.order < $1.order }
         
         for (index, segment) in sortedSegments.enumerated() {
-            // ファイルURL構築
+            // Build file URL
             let fileURL: URL
             if !segment.uri.hasPrefix("/") {
                 fileURL = documentsPath.appendingPathComponent(segment.uri)
@@ -173,79 +173,79 @@ class ProjectManager: ObservableObject {
                 fileURL = URL(fileURLWithPath: segment.uri)
             }
             
-            // ファイル存在確認
+            // Check file existence
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                print("❌ Segment file not found: \(fileURL.lastPathComponent)")
+                print("Segment file not found: \(fileURL.lastPathComponent)")
                 continue
             }
             
-            // AVURLAsset作成（iOS 18対応）
+            // Create AVURLAsset (iOS 18 compatible)
             let asset = AVURLAsset(url: fileURL)
             
             do {
-                // 非推奨API対応: loadTracks使用
+                // Deprecated API handling: use loadTracks
                 let assetVideoTracks = try await asset.loadTracks(withMediaType: .video)
                 let assetAudioTracks = try await asset.loadTracks(withMediaType: .audio)
                 let assetDuration = try await asset.load(.duration)
                 
-                // 動画トラックを追加
+                // Add video track
                 if let assetVideoTrack = assetVideoTracks.first {
                     let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
                     try videoTrack.insertTimeRange(timeRange, of: assetVideoTrack, at: currentTime)
                     
-                    // 🔧 追加: 動画の向き補正を適用
+                    // Add: Apply video orientation correction
                     if index == 0 {
-                        // 最初のセグメントから向き情報を取得してcomposition全体に適用
+                        // Get orientation info from first segment and apply to entire composition
                         let transform = assetVideoTrack.preferredTransform
                         let naturalSize = assetVideoTrack.naturalSize
                         
-                        // compositionに向き情報を設定
+                        // Set orientation info for composition
                         videoTrack.preferredTransform = transform
                         
-                        // 向きに応じてcompositionのサイズを調整
+                        // Adjust composition size based on orientation
                         let angle = atan2(transform.b, transform.a)
                         let isRotated = abs(angle) > .pi / 4
                         
                         if isRotated {
-                            // 90度または270度回転の場合、幅と高さを入れ替え
+                            // For 90 or 270 degree rotation, swap width and height
                             composition.naturalSize = CGSize(width: naturalSize.height, height: naturalSize.width)
-                            print("🔄 Composition rotated: \(naturalSize) → \(composition.naturalSize)")
+                            print("Composition rotated: \(naturalSize) → \(composition.naturalSize)")
                         } else {
                             composition.naturalSize = naturalSize
-                            print("🔄 Composition normal: \(naturalSize)")
+                            print("Composition normal: \(naturalSize)")
                         }
                         
-                        print("🔄 Transform applied: \(transform)")
+                        print("Transform applied: \(transform)")
                     }
                     
-                    print("✅ Video track added: Segment \(segment.order)")
+                    print("Video track added: Segment \(segment.order)")
                 }
                 
-                // 音声トラックを追加
+                // Add audio track
                 if let assetAudioTrack = assetAudioTracks.first {
                     let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
                     try audioTrack.insertTimeRange(timeRange, of: assetAudioTrack, at: currentTime)
-                    print("✅ Audio track added: Segment \(segment.order)")
+                    print("Audio track added: Segment \(segment.order)")
                 }
                 
-                // 次のセグメントの開始時間を更新
+                // Update start time for next segment
                 currentTime = CMTimeAdd(currentTime, assetDuration)
-                print("🔄 Current composition time: \(currentTime.seconds)s")
+                print("Current composition time: \(currentTime.seconds)s")
                 
             } catch {
-                print("❌ Failed to add segment \(segment.order): \(error)")
+                print("Failed to add segment \(segment.order): \(error)")
             }
         }
         
         let totalDuration = currentTime.seconds
-        print("🎬 Composition created successfully")
-        print("📊 Total duration: \(totalDuration)s")
-        print("📊 Total segments processed: \(sortedSegments.count)")
+        print("Composition created successfully")
+        print("Total duration: \(totalDuration)s")
+        print("Total segments processed: \(sortedSegments.count)")
         
         return composition
     }
     
-    // MARK: - 進捗付きComposition作成関数（向き補正修正版）
+    // MARK: - Composition creation with progress (orientation correction fixed version)
     func createCompositionWithProgress(
         for project: Project,
         progressCallback: @escaping (Int, Int) -> Void
@@ -260,7 +260,7 @@ class ProjectManager: ObservableObject {
         
         let composition = AVMutableComposition()
         
-        // 動画トラックと音声トラックを作成
+        // Create video and audio tracks
         guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
               let audioTrack = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else {
             print("Failed to create composition tracks")
@@ -270,16 +270,16 @@ class ProjectManager: ObservableObject {
         var currentTime = CMTime.zero
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         
-        // セグメントを順序通りに処理
+        // Process segments in order
         let sortedSegments = project.segments.sorted { $0.order < $1.order }
         let totalSegments = sortedSegments.count
         
-        // セグメントを順番に処理
+        // Process segments sequentially
         for (index, segment) in sortedSegments.enumerated() {
-            // 進捗コールバック呼び出し
+            // Call progress callback
             progressCallback(index, totalSegments)
             
-            // ファイルURL構築
+            // Build file URL
             let fileURL: URL
             if !segment.uri.hasPrefix("/") {
                 fileURL = documentsPath.appendingPathComponent(segment.uri)
@@ -287,89 +287,89 @@ class ProjectManager: ObservableObject {
                 fileURL = URL(fileURLWithPath: segment.uri)
             }
             
-            // ファイル存在確認
+            // Check file existence
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                print("⚠️ File not found: \(fileURL.path)")
+                print("File not found: \(fileURL.path)")
                 continue
             }
             
-            // AVURLAsset作成（iOS 18対応）
+            // Create AVURLAsset (iOS 18 compatible)
             let asset = AVURLAsset(url: fileURL)
             
             do {
-                // 非推奨API対応: loadTracks使用
+                // Deprecated API handling: use loadTracks
                 let assetVideoTracks = try await asset.loadTracks(withMediaType: .video)
                 let assetAudioTracks = try await asset.loadTracks(withMediaType: .audio)
                 let assetDuration = try await asset.load(.duration)
                 
-                // 動画トラックを追加
+                // Add video track
                 if let assetVideoTrack = assetVideoTracks.first {
                     let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
                     try videoTrack.insertTimeRange(timeRange, of: assetVideoTrack, at: currentTime)
                     
-                    // 🔧 重要: 動画の向き補正を適用（既存のcreateComposition関数と同じ処理）
+                    // Important: Apply video orientation correction (same as existing createComposition function)
                     if index == 0 {
-                        // 最初のセグメントから向き情報を取得してcomposition全体に適用
+                        // Get orientation info from first segment and apply to entire composition
                         let transform = assetVideoTrack.preferredTransform
                         let naturalSize = assetVideoTrack.naturalSize
                         
-                        // compositionに向き情報を設定
+                        // Set orientation info for composition
                         videoTrack.preferredTransform = transform
                         
-                        // 向きに応じてcompositionのサイズを調整
+                        // Adjust composition size based on orientation
                         let angle = atan2(transform.b, transform.a)
                         let isRotated = abs(angle) > .pi / 4
                         
                         if isRotated {
-                            // 90度または270度回転の場合、幅と高さを入れ替え
+                            // For 90 or 270 degree rotation, swap width and height
                             composition.naturalSize = CGSize(width: naturalSize.height, height: naturalSize.width)
-                            print("🔄 Composition rotated: \(naturalSize) → \(composition.naturalSize)")
+                            print("Composition rotated: \(naturalSize) → \(composition.naturalSize)")
                         } else {
                             composition.naturalSize = naturalSize
-                            print("🔄 Composition normal: \(naturalSize)")
+                            print("Composition normal: \(naturalSize)")
                         }
                         
-                        print("🔄 Transform applied: \(transform)")
+                        print("Transform applied: \(transform)")
                     }
                     
-                    print("✅ Video track added: Segment \(segment.order)")
+                    print("Video track added: Segment \(segment.order)")
                 }
                 
-                // 音声トラックを追加
+                // Add audio track
                 if let assetAudioTrack = assetAudioTracks.first {
                     let timeRange = CMTimeRange(start: .zero, duration: assetDuration)
                     try audioTrack.insertTimeRange(timeRange, of: assetAudioTrack, at: currentTime)
-                    print("✅ Audio track added: Segment \(segment.order)")
+                    print("Audio track added: Segment \(segment.order)")
                 }
                 
-                // 次のセグメントの開始時間を更新
+                // Update start time for next segment
                 currentTime = CMTimeAdd(currentTime, assetDuration)
-                print("🔄 Current composition time: \(currentTime.seconds)s")
+                print("Current composition time: \(currentTime.seconds)s")
                 
-                // 少し処理時間をシミュレート（実際のファイル処理時間）
-                try await Task.sleep(nanoseconds: 10_000_000) // 0.01秒
+                // Simulate some processing time (actual file processing time)
+                try await Task.sleep(nanoseconds: 10_000_000) // 0.01 seconds
                 
             } catch {
-                print("⚠️ Error processing segment \(segment.order): \(error)")
+                print("Error processing segment \(segment.order): \(error)")
                 continue
             }
             
-            // デバッグログ（50セグメントごと）
+            // Debug log (every 50 segments)
             if (index + 1) % 50 == 0 || index == totalSegments - 1 {
-                print("📊 Processed \(index + 1)/\(totalSegments) segments")
+                print("Processed \(index + 1)/\(totalSegments) segments")
             }
         }
         
-        // 最終進捗コールバック
+        // Final progress callback
         progressCallback(totalSegments, totalSegments)
         
         let totalDuration = currentTime.seconds
-        print("✅ Composition created: \(totalSegments) segments, total duration: \(totalDuration)s")
+        print("Composition created: \(totalSegments) segments, total duration: \(totalDuration)s")
         
         return composition
     }
     
-    // 🆕 追加: セグメント位置計算機能（統合再生用）
+    // Add: Segment position calculation functionality (for integrated playback)
     func getSegmentTimeRanges(for project: Project) async -> [(segment: VideoSegment, timeRange: CMTimeRange)] {
         var result: [(VideoSegment, CMTimeRange)] = []
         var currentTime = CMTime.zero
@@ -378,7 +378,7 @@ class ProjectManager: ObservableObject {
         let sortedSegments = project.segments.sorted { $0.order < $1.order }
         
         for segment in sortedSegments {
-            // ファイルURL構築
+            // Build file URL
             let fileURL: URL
             if !segment.uri.hasPrefix("/") {
                 fileURL = documentsPath.appendingPathComponent(segment.uri)
@@ -386,7 +386,7 @@ class ProjectManager: ObservableObject {
                 fileURL = URL(fileURLWithPath: segment.uri)
             }
             
-            // ファイル存在確認
+            // Check file existence
             guard FileManager.default.fileExists(atPath: fileURL.path) else {
                 continue
             }
@@ -399,71 +399,71 @@ class ProjectManager: ObservableObject {
                 result.append((segment, timeRange))
                 currentTime = CMTimeAdd(currentTime, duration)
             } catch {
-                print("❌ Failed to load duration for segment \(segment.order): \(error)")
+                print("Failed to load duration for segment \(segment.order): \(error)")
             }
         }
         
         return result
     }
     
-    // セグメント用の個別ファイル削除
+    // Individual file deletion for segments
     private func deleteVideoFile(for segment: VideoSegment) {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let fileURL: URL
         
-        // ファイル名のみの場合（新しい形式）
+        // For filename only (new format)
         if !segment.uri.hasPrefix("/") {
             fileURL = documentsPath.appendingPathComponent(segment.uri)
         } else {
-            // 絶対パスの場合（旧い形式）- 後方互換性
+            // For absolute path (old format) - backward compatibility
             fileURL = URL(fileURLWithPath: segment.uri)
         }
         
         do {
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 try FileManager.default.removeItem(at: fileURL)
-                print("🗑 Segment file deleted: \(fileURL.lastPathComponent)")
+                print("Segment file deleted: \(fileURL.lastPathComponent)")
             } else {
-                print("⚠️ Segment file not found: \(fileURL.lastPathComponent)")
+                print("Segment file not found: \(fileURL.lastPathComponent)")
             }
         } catch {
-            print("❌ Segment file deletion error: \(fileURL.lastPathComponent) - \(error)")
+            print("Segment file deletion error: \(fileURL.lastPathComponent) - \(error)")
         }
     }
     
-    // プロジェクト削除（完全版：データ + 動画ファイル削除）
+    // Project deletion (complete version: data + video file deletion)
     func deleteProject(_ project: Project) {
-        print("🗑 Project deletion started: \(project.name)")
+        print("Project deletion started: \(project.name)")
         
-        // 1. 動画ファイルを物理削除
+        // 1. Physically delete video files
         deleteVideoFiles(for: project)
         
-        // 2. プロジェクトリストから削除
+        // 2. Remove from project list
         projects.removeAll { $0.id == project.id }
         
-        // 3. UserDefaultsに保存
+        // 3. Save to UserDefaults
         saveProjects()
         
-        print("✅ Project deletion completed: \(project.name)")
-        print("📊 Remaining projects: \(projects.count)")
+        print("Project deletion completed: \(project.name)")
+        print("Remaining projects: \(projects.count)")
     }
     
-    // 動画ファイルの物理削除
+    // Physical deletion of video files
     private func deleteVideoFiles(for project: Project) {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var deletedCount = 0
         var errorCount = 0
         
-        print("🔍 Target segments for deletion: \(project.segments.count)")
+        print("Target segments for deletion: \(project.segments.count)")
         
         for segment in project.segments {
             let fileURL: URL
             
-            // ファイル名のみの場合（新しい形式）
+            // For filename only (new format)
             if !segment.uri.hasPrefix("/") {
                 fileURL = documentsPath.appendingPathComponent(segment.uri)
             } else {
-                // 絶対パスの場合（旧い形式）- 後方互換性
+                // For absolute path (old format) - backward compatibility
                 fileURL = URL(fileURLWithPath: segment.uri)
             }
             
@@ -471,63 +471,63 @@ class ProjectManager: ObservableObject {
                 if FileManager.default.fileExists(atPath: fileURL.path) {
                     try FileManager.default.removeItem(at: fileURL)
                     deletedCount += 1
-                    print("🗑 File deleted: \(fileURL.lastPathComponent)")
+                    print("File deleted: \(fileURL.lastPathComponent)")
                 } else {
-                    print("⚠️ File not found: \(fileURL.lastPathComponent)")
+                    print("File not found: \(fileURL.lastPathComponent)")
                 }
             } catch {
                 errorCount += 1
-                print("❌ File deletion error: \(fileURL.lastPathComponent) - \(error)")
+                print("File deletion error: \(fileURL.lastPathComponent) - \(error)")
             }
         }
         
-        print("📊 File deletion result: Success \(deletedCount), Errors \(errorCount)")
+        print("File deletion result: Success \(deletedCount), Errors \(errorCount)")
     }
     
-    // MARK: - データ永続化
+    // MARK: - Data Persistence
     
-    // プロジェクト保存 (UserDefaults使用)
+    // Save projects (using UserDefaults)
     private func saveProjects() {
         do {
             let data = try JSONEncoder().encode(projects)
             userDefaults.set(data, forKey: projectsKey)
-            print("💾 Projects saved successfully: \(projects.count) items")
+            print("Projects saved successfully: \(projects.count) items")
         } catch {
-            print("❌ Project save error: \(error)")
+            print("Project save error: \(error)")
         }
     }
     
-    // プロジェクト読み込み
+    // Load projects
     private func loadProjects() {
         guard let data = userDefaults.data(forKey: projectsKey) else {
-            print("📂 No saved projects found")
+            print("No saved projects found")
             return
         }
         
         do {
             projects = try JSONDecoder().decode([Project].self, from: data)
-            print("📂 Projects loaded successfully: \(projects.count) items")
+            print("Projects loaded successfully: \(projects.count) items")
         } catch {
-            print("❌ Project load error: \(error)")
+            print("Project load error: \(error)")
             projects = []
         }
     }
     
-    // MARK: - ヘルパーメソッド
+    // MARK: - Helper Methods
     
-    // プロジェクト検索
+    // Search project
     func findProject(by id: Int) -> Project? {
         return projects.first { $0.id == id }
     }
     
-    // 統計情報
+    // Statistics
     var totalSegments: Int {
         return projects.reduce(0) { $0 + $1.segmentCount }
     }
     
-    // 全プロジェクト削除（開発・テスト用）
+    // Delete all projects (for development/testing)
     func deleteAllProjects() {
-        print("🗑 All projects deletion started")
+        print("All projects deletion started")
         
         for project in projects {
             deleteVideoFiles(for: project)
@@ -536,6 +536,6 @@ class ProjectManager: ObservableObject {
         projects.removeAll()
         saveProjects()
         
-        print("✅ All projects deletion completed")
+        print("All projects deletion completed")
     }
 }

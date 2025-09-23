@@ -154,7 +154,7 @@ struct MainView: View {
                 }
     }
     
-    // MARK: - エクスポート進捗オーバーレイ
+    // Export Progress Overlay
     private func exportProgressOverlay(for project: Project) -> some View {
         ZStack {
             Color.black.opacity(0.85)
@@ -424,7 +424,7 @@ struct MainView: View {
         
         // 購入制限チェック
         if !purchaseManager.canCreateNewProject(currentProjectCount: projectManager.projects.count) {
-            print("プロジェクト作成制限: 無料版は3個まで - 購入画面を表示")
+            print("Project creation limit: Free version allows up to 3 - Show purchase screen")
             showPurchaseView = true
             return
         }
@@ -484,7 +484,7 @@ struct MainView: View {
         
         // エクスポート制限チェック
         if !purchaseManager.canExportVideo() {
-            print("Export blocked: Free version limitation - 購入画面を表示")
+            print("Export blocked: Free version limitation - Show purchase screen")
             showPurchaseView = true
             return
         }
