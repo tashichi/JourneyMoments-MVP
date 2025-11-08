@@ -10,6 +10,10 @@ struct ProjectListView: View {
     let onRenameProject: (Project, String) -> Void
     let onExportProject: (Project) -> Void
     
+    // ← 追加：購入マネージャーと課金画面表示状態
+    @ObservedObject var purchaseManager: PurchaseManager
+    @State private var showPurchaseView = false
+    
     @State private var showDeleteAlert = false
     @State private var projectToDelete: Project?
     
@@ -78,16 +82,48 @@ struct ProjectListView: View {
                 Text("Enter a new name for \"\(project.name)\"")
             }
         }
+        // ← 追加：課金画面の表示
+        .sheet(isPresented: $showPurchaseView) {
+            PurchaseView(purchaseManager: purchaseManager)
+        }
     }
     
     // MARK: - Header
     private var headerView: some View {
         VStack(spacing: 10) {
+            // ← 修正：上部にステータスと購入ボタンを配置
+            HStack(spacing: 20) {
+                // 左側：ステータス表示
+                Text(purchaseManager.isPurchased ? "Full Version" : "Free Version")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(purchaseManager.isPurchased ? .green : .gray)
+                
+                Spacer()
+                
+                // 右側：購入ボタン（未課金時のみ表示）
+                if !purchaseManager.isPurchased {
+                    Button(action: {
+                        showPurchaseView = true
+                    }) {
+                        Text("Full Version")
+                            .font(.system(size: 14, weight: .semibold))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.orange)
+                            .foregroundColor(.white)
+                            .cornerRadius(12)
+                    }
+                }
+            }
+            .padding(.horizontal, 20)
+            
+            // ClipFlowタイトル
             Text("ClipFlow")
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.white)
             
+            // New Projectボタン（既存）
             Button(action: onCreateProject) {
                 HStack {
                     Image(systemName: "plus.circle.fill")
@@ -177,73 +213,73 @@ struct ProjectListView: View {
                     }
                     
                     // Bottom button area (Rec | Play | Export)
-                       HStack(spacing: 0) {
-                           // Record button
-                           Button {
-                               print("Record button tapped: \(project.name)")
-                               onOpenProject(project)
-                           } label: {
-                               HStack(spacing: 6) {
-                                   Image(systemName: "camera.fill")
-                                       .font(.caption)
-                                   Text("Rec")
-                                       .font(.caption)
-                                       .fontWeight(.medium)
-                               }
-                               .frame(maxWidth: .infinity, minHeight: 40)
-                               .background(Color.red)
-                               .foregroundColor(.white)
-                           }
-                           .buttonStyle(PlainButtonStyle())
-                           
-                           // Play button
-                           Button {
-                               print("Play button tapped: \(project.name)")
-                               onPlayProject(project)
-                           } label: {
-                               HStack(spacing: 6) {
-                                   Image(systemName: "play.fill")
-                                       .font(.caption)
-                                   Text("Play")
-                                       .font(.caption)
-                                       .fontWeight(.medium)
-                               }
-                               .frame(maxWidth: .infinity, minHeight: 40)
-                               .background(Color.blue)
-                               .foregroundColor(.white)
-                           }
-                           .buttonStyle(PlainButtonStyle())
-                           .disabled(project.segmentCount == 0)
-                           .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-                           
-                           // Export button
-                           Button {
-                               print("Export button tapped: \(project.name)")
-                               handleExportProject(project)
-                           } label: {
-                               HStack(spacing: 6) {
-                                   if exportingProjects.contains(project.id) {
-                                       ProgressView()
-                                           .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                           .scaleEffect(0.8)
-                                   } else {
-                                       Image(systemName: "square.and.arrow.up")
-                                           .font(.caption)
-                                       Text("Export")
-                                           .font(.caption)
-                                           .fontWeight(.medium)
-                                   }
-                               }
-                               .frame(maxWidth: .infinity, minHeight: 40)
-                               .background(exportingProjects.contains(project.id) ? Color.orange.opacity(0.7) : Color.orange)
-                               .foregroundColor(.white)
-                           }
-                           .buttonStyle(PlainButtonStyle())
-                           .disabled(exportingProjects.contains(project.id) || project.segmentCount == 0)
-                           .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-                       }
-                       .cornerRadius(8)
-                       .clipped()
+                    HStack(spacing: 0) {
+                        // Record button
+                        Button {
+                            print("Record button tapped: \(project.name)")
+                            onOpenProject(project)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "camera.fill")
+                                    .font(.caption)
+                                Text("Rec")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        // Play button
+                        Button {
+                            print("Play button tapped: \(project.name)")
+                            onPlayProject(project)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "play.fill")
+                                    .font(.caption)
+                                Text("Play")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(project.segmentCount == 0)
+                        .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+                        
+                        // Export button
+                        Button {
+                            print("Export button tapped: \(project.name)")
+                            handleExportProject(project)
+                        } label: {
+                            HStack(spacing: 6) {
+                                if exportingProjects.contains(project.id) {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.caption)
+                                    Text("Export")
+                                        .font(.caption)
+                                        .fontWeight(.medium)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .background(exportingProjects.contains(project.id) ? Color.orange.opacity(0.7) : Color.orange)
+                            .foregroundColor(.white)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(exportingProjects.contains(project.id) || project.segmentCount == 0)
+                        .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
+                    }
+                    .cornerRadius(8)
+                    .clipped()
                 }
                 .padding(16)
                 .background(Color(.systemGray6).opacity(0.15))
@@ -404,6 +440,8 @@ struct ProjectListView_Previews: PreviewProvider {
             ])
         ]
         
+        let mockPurchaseManager = PurchaseManager()
+        
         ProjectListView(
             projects: sampleProjects,
             onCreateProject: {},
@@ -411,7 +449,8 @@ struct ProjectListView_Previews: PreviewProvider {
             onPlayProject: { _ in },
             onDeleteProject: { _ in },
             onRenameProject: { _, _ in },
-            onExportProject: { _ in }
+            onExportProject: { _ in },
+            purchaseManager: mockPurchaseManager
         )
     }
 }

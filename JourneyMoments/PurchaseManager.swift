@@ -16,7 +16,15 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     // MARK: - Initialization
     override init() {
         super.init()
+        
+        #if targetEnvironment(simulator)
+        // シミュレーター：常に未課金に強制（テスト用）
+        isPurchased = false
+        print("🔧 SIMULATOR MODE: isPurchased forced to false for testing")
+        #else
+        // 実機：UserDefaultsから読み込む
         loadPurchaseState()
+        #endif
         
         // Start StoreKit monitoring
         SKPaymentQueue.default().add(self)
@@ -38,6 +46,11 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     }
     
     private func savePurchaseState(_ purchased: Bool) {
+        #if targetEnvironment(simulator)
+        print("⚠️ SIMULATOR: savePurchaseState called but not saving (simulator test mode)")
+        return
+        #endif
+        
         isPurchased = purchased
         UserDefaults.standard.set(purchased, forKey: purchaseKey)
         print("Purchase state saved: \(purchased ? "Purchased" : "Free version")")
@@ -74,10 +87,10 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     // MARK: - SKProductsRequestDelegate
     
     func productsRequest(_ request: SKProductsRequest, didReceive response: SKProductsResponse) {
-        // デバッグ用ログ追加
-            print("商品ID: \(productID)")
-            print("商品取得結果: \(response.products)")
-            print("無効な商品ID: \(response.invalidProductIdentifiers)")
+        print("商品ID: \(productID)")
+        print("商品取得結果: \(response.products)")
+        print("無効な商品ID: \(response.invalidProductIdentifiers)")
+        
         DispatchQueue.main.async {
             self.isLoading = false
             
@@ -90,7 +103,6 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
                 print("Error: Product not found")
             }
             
-            // Handle invalid product IDs
             if !response.invalidProductIdentifiers.isEmpty {
                 print("Invalid product IDs: \(response.invalidProductIdentifiers)")
             }
@@ -108,12 +120,10 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
     // MARK: - Purchase Processing
 
     func purchase() {
-        // If product information is not available, try reloading
         guard let product = product else {
             print("Product information not available, attempting reload")
             loadProduct()
             
-            // Retry after a short delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 if self.product != nil {
                     self.purchase()
@@ -160,7 +170,7 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
                 print("Purchase in progress...")
             case .deferred:
                 print("Purchase is pending")
-            default:
+            @unknown default:
                 print("Unknown transaction state")
             }
         }
@@ -174,7 +184,6 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             print("Purchase successful: \(transaction.payment.productIdentifier)")
         }
         
-        // Complete transaction
         SKPaymentQueue.default().finishTransaction(transaction)
     }
     
@@ -185,7 +194,7 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             if let error = transaction.error as? SKError {
                 switch error.code {
                 case .paymentCancelled:
-                    self.errorMessage = nil // Don't show error for cancellation
+                    self.errorMessage = nil
                     print("Purchase cancelled")
                 case .paymentNotAllowed:
                     self.errorMessage = "Purchases are not available on this device"
@@ -193,7 +202,7 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
                     self.errorMessage = "Purchase information is invalid"
                 case .storeProductNotAvailable:
                     self.errorMessage = "This product is not available"
-                default:
+                @unknown default:
                     self.errorMessage = "Purchase error: \(error.localizedDescription)"
                 }
             } else {
@@ -201,7 +210,6 @@ class PurchaseManager: NSObject, ObservableObject, SKProductsRequestDelegate, SK
             }
         }
         
-        // Complete failed transaction
         SKPaymentQueue.default().finishTransaction(transaction)
     }
     

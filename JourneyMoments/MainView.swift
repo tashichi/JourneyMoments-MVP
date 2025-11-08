@@ -36,21 +36,29 @@ struct MainView: View {
             Color.black.ignoresSafeArea()
             
             VStack(spacing: 0) {
-                headerView
-                purchaseStatusView
-                
-                // プロジェクトリストとボタンをScrollViewで囲む
-                ScrollView {
-                    VStack(spacing: 30) {
-                        if !projectManager.projects.isEmpty {
-                            projectListContent
-                        }
-                        
-                        actionButtons
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 50)
-                }
+                // ← ProjectListViewに統合
+                ProjectListView(
+                    projects: projectManager.projects,
+                    onCreateProject: {
+                        createNewProject()
+                    },
+                    onOpenProject: { project in
+                        openProject(project, screen: .camera)
+                    },
+                    onPlayProject: { project in
+                        openProject(project, screen: .player)
+                    },
+                    onDeleteProject: { project in
+                        confirmDeleteProject(project)
+                    },
+                    onRenameProject: { project, newName in
+                        projectManager.renameProject(project, newName: newName)
+                    },
+                    onExportProject: { project in
+                        exportProject(project)
+                    },
+                    purchaseManager: purchaseManager
+                )
             }
             
             // エクスポート進捗オーバーレイ
@@ -98,20 +106,6 @@ struct MainView: View {
                 )
             }
         }
-        .alert("Rename Project", isPresented: $isEditingProjectName) {
-            TextField("Project name", text: $newProjectName)
-            Button("Save") {
-                if let project = editingProject {
-                    projectManager.renameProject(project, newName: newProjectName)
-                }
-                resetEditingState()
-            }
-            Button("Cancel", role: .cancel) {
-                resetEditingState()
-            }
-        } message: {
-            Text("Enter a new name for this project")
-        }
         .alert("Project Limit Reached", isPresented: $showProjectLimitAlert) {
             Button("Upgrade to Full Version") {
                 showPurchaseView = true
@@ -150,8 +144,8 @@ struct MainView: View {
             Text("Video has been saved to your photo library!")
         }
         .sheet(isPresented: $showPurchaseView) {
-                    PurchaseView(purchaseManager: purchaseManager)
-                }
+            PurchaseView(purchaseManager: purchaseManager)
+        }
     }
     
     // Export Progress Overlay
@@ -217,206 +211,6 @@ struct MainView: View {
         }
     }
     
-    // MARK: - Header View
-    private var headerView: some View {
-        VStack(spacing: 12) {
-            Text("ClipFlow")
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
-        }
-        .padding(.top, 60)
-        .padding(.bottom, 20)
-    }
-    
-    // MARK: - Purchase Status View
-    private var purchaseStatusView: some View {
-        HStack {
-            Text(purchaseManager.isPurchased ? "Full Version" : "Free Version")
-                .font(.caption)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
-                .background(purchaseManager.isPurchased ? Color.green.opacity(0.8) : Color.orange.opacity(0.8))
-                .foregroundColor(.white)
-                .cornerRadius(8)
-            
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 10)
-    }
-    
-    // MARK: - Project List Content
-    private var projectListContent: some View {
-        VStack(spacing: 16) {
-            Text("Your Projects")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-            
-            LazyVStack(spacing: 12) {
-                ForEach(projectManager.projects) { project in
-                    projectCard(project)
-                }
-            }
-        }
-    }
-    
-    private func projectCard(_ project: Project) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 上部：プロジェクト情報
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text(project.name)
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        // 編集・削除アイコン
-                        HStack(spacing: 8) {
-                            Image(systemName: "pencil")
-                                .font(.caption2)
-                                .foregroundColor(.gray.opacity(0.7))
-                            
-                            Image(systemName: "trash")
-                                .font(.caption2)
-                                .foregroundColor(.gray.opacity(0.7))
-                        }
-                    }
-                    
-                    Text("\(project.segmentCount) segments")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                    
-                    Text("Created: \(formatDate(project.createdAt))")
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                }
-                
-                Spacer()
-            }
-            
-            // 下部：横並びボタン
-            HStack(spacing: 8) {
-                // 撮影ボタン
-                Button(action: {
-                    openProject(project, screen: .camera)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "camera")
-                        Text("Rec")
-                    }
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, minHeight: 35)
-                    .background(Color.red.opacity(0.8))
-                    .cornerRadius(6)
-                }
-                
-                // 再生ボタン
-                Button(action: {
-                    openProject(project, screen: .player)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "play")
-                        Text("Play")
-                    }
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, minHeight: 35)
-                    .background(Color.blue.opacity(0.8))
-                    .cornerRadius(6)
-                }
-                .disabled(project.segmentCount == 0)
-                .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-                
-                // エクスポートボタン
-                Button(action: {
-                    exportProject(project)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Export")
-                    }
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity, minHeight: 35)
-                    .background(purchaseManager.canExportVideo() ? Color.orange.opacity(0.8) : Color.gray.opacity(0.6))
-                    .cornerRadius(6)
-                }
-                .disabled(project.segmentCount == 0)
-                .opacity(project.segmentCount == 0 ? 0.5 : 1.0)
-            }
-        }
-        .padding(16)
-        .background(Color.white.opacity(0.1))
-        .cornerRadius(12)
-        .onTapGesture {
-            selectedProject = project
-        }
-        .contextMenu {
-            Button(action: {
-                startEditingProjectName(project)
-            }) {
-                Label("Rename", systemImage: "pencil")
-            }
-            
-            Button(action: {
-                confirmDeleteProject(project)
-            }) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
-    }
-    
-    // MARK: - Action Buttons
-    private var actionButtons: some View {
-        VStack(spacing: 20) {
-            // New Project Button
-            Button(action: {
-                createNewProject()
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle")
-                        .font(.title2)
-                    Text("New Project")
-                        .font(.title3)
-                        .fontWeight(.medium)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.blue.opacity(0.8))
-                .cornerRadius(25)
-            }
-            
-            if projectManager.projects.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "video.circle")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    
-                    Text("No Projects Yet")
-                        .font(.title2)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                    
-                    Text("Create your first project to start recording 1-second memories")
-                        .font(.body)
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                }
-                .padding(.vertical, 40)
-            }
-        }
-    }
-    
     // MARK: - Helper Functions
     
     private func createNewProject() {
@@ -439,18 +233,6 @@ struct MainView: View {
         selectedProject = project
         currentScreen = screen
         print("Project opened: \(project.name) in \(screen) mode")
-    }
-    
-    private func startEditingProjectName(_ project: Project) {
-        editingProject = project
-        newProjectName = project.name
-        isEditingProjectName = true
-    }
-    
-    private func resetEditingState() {
-        editingProject = nil
-        newProjectName = ""
-        isEditingProjectName = false
     }
     
     private func confirmDeleteProject(_ project: Project) {
