@@ -12,6 +12,7 @@ struct CameraView: View {
     @State private var alertMessage = ""
     @State private var showSuccessToast = false
     @State private var successMessage = ""
+    @State private var isTorchOn = false
     
     var body: some View {
         ZStack {
@@ -80,6 +81,9 @@ struct CameraView: View {
             setupCamera()
         }
         .onDisappear {
+            if isTorchOn {
+                toggleTorch()
+            }
             videoManager.stopSession()
         }
         .alert("Recording Error", isPresented: $showingAlert) {
@@ -149,10 +153,20 @@ struct CameraView: View {
     // MARK: - Controls View
     private var controlsView: some View {
         VStack(spacing: 20) {
-            HStack {
+            HStack(spacing: 30) {
+                // Light button (left)
+                Button(action: toggleTorch) {
+                    Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(isTorchOn ? .yellow : .gray)
+                        .frame(width: 50, height: 50)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(10)
+                }
+                
                 Spacer()
                 
-                // Recording button
+                // Recording button (center)
                 Button(action: recordOneSecondVideo) {
                     ZStack {
                         Circle()
@@ -178,6 +192,17 @@ struct CameraView: View {
                 .opacity((videoManager.isSetupComplete && currentProject != nil) ? 1.0 : 0.5)
                 
                 Spacer()
+                
+                // Spacer button (right)
+                Button(action: {}) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 24))
+                        .foregroundColor(.gray)
+                        .frame(width: 50, height: 50)
+                        .background(Color.black.opacity(0.3))
+                        .cornerRadius(10)
+                }
+                .disabled(true)
             }
         }
         .padding(.bottom, 50)
@@ -261,10 +286,10 @@ struct CameraView: View {
                     cameraPosition: videoManager.currentCameraPosition,
                     order: (currentProject?.segments.count ?? 0) + 1
                 )
-
+                
                 // Notify main screen of recording completion
                 onRecordingComplete(newSegment)
-
+                
                 // Show success toast
                 successMessage = "✅ Segment \((currentProject?.segments.count ?? 0) + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -287,6 +312,38 @@ struct CameraView: View {
             }
             
             isRecording = false
+        }
+    }
+    
+    private func toggleTorch() {
+        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera,
+                                                    for: .video,
+                                                    position: .back) else {
+            print("Back camera not found")
+            return
+        }
+        
+        guard device.hasTorch else {
+            print("This device does not support torch")
+            return
+        }
+        
+        do {
+            try device.lockForConfiguration()
+            
+            if isTorchOn {
+                device.torchMode = .off
+                isTorchOn = false
+                print("Torch: OFF")
+            } else {
+                try device.setTorchModeOn(level: 1.0)
+                isTorchOn = true
+                print("Torch: ON")
+            }
+            
+            device.unlockForConfiguration()
+        } catch {
+            print("Torch control error: \(error)")
         }
     }
 }
@@ -392,4 +449,3 @@ struct CameraView_Previews: PreviewProvider {
         )
     }
 }
-
