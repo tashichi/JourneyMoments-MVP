@@ -153,18 +153,21 @@ struct CameraView: View {
     // MARK: - Controls View
     private var controlsView: some View {
         VStack(spacing: 20) {
-            HStack(spacing: 30) {
-                // Light button (left)
-                Button(action: toggleTorch) {
-                    Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(isTorchOn ? .yellow : .gray)
-                        .frame(width: 50, height: 50)
-                        .background(Color.black.opacity(0.3))
-                        .cornerRadius(10)
+            ZStack {
+                // Light button (left side)
+                HStack {
+                    Button(action: toggleTorch) {
+                        Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(isTorchOn ? .yellow : .gray)
+                            .frame(width: 50, height: 50)
+                            .background(Color.black.opacity(0.3))
+                            .cornerRadius(10)
+                    }
+                    .padding(.leading, 20)
+                    
+                    Spacer()
                 }
-                
-                Spacer()
                 
                 // Recording button (center)
                 Button(action: recordOneSecondVideo) {
@@ -190,19 +193,6 @@ struct CameraView: View {
                 }
                 .disabled(isRecording || currentProject == nil || !videoManager.isSetupComplete)
                 .opacity((videoManager.isSetupComplete && currentProject != nil) ? 1.0 : 0.5)
-                
-                Spacer()
-                
-                // Spacer button (right)
-                Button(action: {}) {
-                    Image(systemName: "gear")
-                        .font(.system(size: 24))
-                        .foregroundColor(.gray)
-                        .frame(width: 50, height: 50)
-                        .background(Color.black.opacity(0.3))
-                        .cornerRadius(10)
-                }
-                .disabled(true)
             }
         }
         .padding(.bottom, 50)
