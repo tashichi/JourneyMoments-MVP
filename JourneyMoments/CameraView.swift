@@ -93,6 +93,11 @@ struct CameraView: View {
             if isTorchOn {
                 toggleTorch()
             }
+            // ✅ ここだけ追加
+                if let timer = volumeCheckTimer {
+                    timer.invalidate()
+                    volumeCheckTimer = nil
+                }
             videoManager.stopSession()
             removeVolumeButtonShutter()
         }
