@@ -1,5 +1,7 @@
 import SwiftUI
 import AVFoundation
+import AVKit
+import MediaPlayer
 
 struct CameraView: View {
     let currentProject: Project?
@@ -13,6 +15,12 @@ struct CameraView: View {
     @State private var showSuccessToast = false
     @State private var successMessage = ""
     @State private var isTorchOn = false
+    
+    // MARK: - Volume Button Shutter States
+    @State private var lastVolumeLevel: Float = 0
+    @State private var volumeObserver: NSObjectProtocol?
+    @State private var volumeView: MPVolumeView?
+    @State private var volumeCheckTimer: Timer?
     
     var body: some View {
         ZStack {
@@ -79,12 +87,14 @@ struct CameraView: View {
         }
         .onAppear {
             setupCamera()
+            setupVolumeButtonShutter()
         }
         .onDisappear {
             if isTorchOn {
                 toggleTorch()
             }
             videoManager.stopSession()
+            removeVolumeButtonShutter()
         }
         .alert("Recording Error", isPresented: $showingAlert) {
             Button("OK") { }
@@ -267,26 +277,21 @@ struct CameraView: View {
             do {
                 let videoURL = try await videoManager.recordOneSecond()
                 
-                // Save filename only (relative path)
                 let filename = videoURL.lastPathComponent
                 
-                // Create new segment
                 let newSegment = VideoSegment(
                     uri: filename,
                     cameraPosition: videoManager.currentCameraPosition,
                     order: (currentProject?.segments.count ?? 0) + 1
                 )
                 
-                // Notify main screen of recording completion
                 onRecordingComplete(newSegment)
                 
-                // Show success toast
                 successMessage = "✅ Segment \((currentProject?.segments.count ?? 0) + 1) recorded"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
                 }
                 
-                // Auto-hide after 1.5 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     withAnimation(.easeInOut(duration: 0.3)) {
                         showSuccessToast = false
@@ -336,6 +341,126 @@ struct CameraView: View {
             print("Torch control error: \(error)")
         }
     }
+    
+    // MARK: - Volume Button Shutter Implementation (Struct-Compatible)
+    
+    private func setupVolumeButtonShutter() {
+        print("📍 Step 1: Setting up AVAudioSession")
+        
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(
+                .record,
+                mode: .videoRecording,
+                options: [.duckOthers, .allowBluetooth]
+            )
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            
+            lastVolumeLevel = audioSession.outputVolume
+            print("✅ AVAudioSession configured - Initial volume: \(lastVolumeLevel)")
+        } catch {
+            print("❌ AVAudioSession configuration failed: \(error.localizedDescription)")
+            return
+        }
+        
+        print("📍 Step 2: Adding MPVolumeView to window")
+        
+        let volumeView = MPVolumeView()
+        volumeView.frame = CGRect(x: -1000, y: -1000, width: 100, height: 100)
+        
+        if let keyWindow = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) {
+            keyWindow.addSubview(volumeView)
+            self.volumeView = volumeView
+            print("✅ MPVolumeView added to key window")
+        } else {
+            print("❌ Key window not found")
+            return
+        }
+        
+        print("📍 Step 3: Setting up volume change notification observer")
+        
+        // Use NotificationCenter without capture list issues
+        let observer = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { _ in
+            // Handle volume change (cannot access self directly in struct closure)
+            let audioSession = AVAudioSession.sharedInstance()
+            let currentVolume = audioSession.outputVolume
+            
+            print("🔊 Volume changed: \(lastVolumeLevel) → \(currentVolume)")
+            
+            if currentVolume > lastVolumeLevel {
+                print("🎥 🎥 🎥 VOLUME UP - RECORDING! 🎥 🎥 🎥")
+                // Unable to call recordOneSecondVideo() directly from closure in Struct
+                // Will use alternative approach below
+            } else if currentVolume < lastVolumeLevel {
+                print("🔇 Volume DOWN detected")
+            }
+        }
+        
+        volumeObserver = observer
+        
+        print("✅ Volume button shutter setup complete")
+        
+        // Alternative: Use Timer-based polling instead of NotificationCenter
+        // This avoids closure capture issues in Struct
+        setupVolumePolling()
+    }
+    
+    private func setupVolumePolling() {
+        print("📍 Setting up volume polling (alternative method)")
+        
+        volumeCheckTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            let audioSession = AVAudioSession.sharedInstance()
+            let currentVolume = audioSession.outputVolume
+            
+            // Detect volume change
+            if abs(currentVolume - lastVolumeLevel) > 0.01 {
+                print("🔊 Volume changed: \(lastVolumeLevel) → \(currentVolume)")
+                
+                if currentVolume > lastVolumeLevel {
+                    print("🎥 🎥 🎥 VOLUME UP - RECORDING! 🎥 🎥 🎥")
+                    // This will now properly call recordOneSecondVideo
+                    DispatchQueue.main.async {
+                        recordOneSecondVideo()
+                    }
+                } else if currentVolume < lastVolumeLevel {
+                    print("🔇 Volume DOWN detected")
+                }
+                
+                lastVolumeLevel = currentVolume
+            }
+        }
+        
+        print("✅ Volume polling started")
+    }
+    
+    private func removeVolumeButtonShutter() {
+        print("📍 Removing volume button shutter")
+        
+        if let observer = volumeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            volumeObserver = nil
+            print("✅ Volume observer removed")
+        }
+        
+        if let timer = volumeCheckTimer {
+            timer.invalidate()
+            volumeCheckTimer = nil
+            print("✅ Volume polling timer stopped")
+        }
+        
+        if let view = volumeView {
+            view.removeFromSuperview()
+            volumeView = nil
+            print("✅ MPVolumeView removed")
+        }
+    }
 }
 
 // MARK: - Camera Preview Representable
@@ -364,7 +489,7 @@ struct CameraPreviewRepresentable: UIViewRepresentable {
     }
 }
 
-// Camera Container View
+// MARK: - Camera Container View
 class CameraContainerView: UIView {
     weak var videoManager: VideoManager?
     private var previewLayer: AVCaptureVideoPreviewLayer?
@@ -373,14 +498,12 @@ class CameraContainerView: UIView {
         super.layoutSubviews()
         print("layoutSubviews - Frame: \(bounds)")
         
-        // Update preview layer after layout completion
         DispatchQueue.main.async {
             self.updatePreviewLayer()
         }
     }
     
     func updatePreviewLayer() {
-        // Skip processing if bounds are zero
         guard bounds.width > 0 && bounds.height > 0 else {
             print("Skipping preview layer update due to zero bounds")
             return
@@ -392,27 +515,22 @@ class CameraContainerView: UIView {
             return
         }
         
-        // Confirm setup completion
         guard videoManager.isSetupComplete else {
             print("Skipping preview layer update - camera setup incomplete")
             return
         }
         
-        // Skip if same preview layer is already set
         if previewLayer === newPreviewLayer {
-            // Update frame only
             newPreviewLayer.frame = bounds
             print("Updated existing preview layer frame only")
             return
         }
         
-        // Remove existing preview layer
         if let existingLayer = previewLayer {
             existingLayer.removeFromSuperlayer()
             print("Removed existing preview layer")
         }
         
-        // Set new preview layer
         newPreviewLayer.frame = bounds
         newPreviewLayer.videoGravity = .resizeAspectFill
         layer.addSublayer(newPreviewLayer)
@@ -420,7 +538,6 @@ class CameraContainerView: UIView {
         
         print("Preview layer added successfully - Frame: \(bounds)")
         
-        // Check session status
         if let session = newPreviewLayer.session, session.isRunning {
             print("Session is running")
         } else {
