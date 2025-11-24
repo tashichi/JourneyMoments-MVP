@@ -93,11 +93,11 @@ struct CameraView: View {
             if isTorchOn {
                 toggleTorch()
             }
-            // ✅ ここだけ追加
-                if let timer = volumeCheckTimer {
-                    timer.invalidate()
-                    volumeCheckTimer = nil
-                }
+            // ✅ Timer を即座に停止
+            if let timer = volumeCheckTimer {
+                timer.invalidate()
+                volumeCheckTimer = nil
+            }
             videoManager.stopSession()
             removeVolumeButtonShutter()
         }
@@ -424,13 +424,23 @@ struct CameraView: View {
             let audioSession = AVAudioSession.sharedInstance()
             let currentVolume = audioSession.outputVolume
             
-            // Detect volume change
+            // ✅ 修正1: 1.0到達時の処理を追加
+            if currentVolume == 1.0 && lastVolumeLevel < 1.0 {
+                print("🔊 Volume reached MAXIMUM (1.0)")
+                print("🎥 🎥 🎥 VOLUME UP TO MAX - RECORDING! 🎥 🎥 🎥")
+                DispatchQueue.main.async {
+                    recordOneSecondVideo()
+                }
+                lastVolumeLevel = currentVolume
+                return
+            }
+            
+            // ✅ 修正2: 通常の変化検出
             if abs(currentVolume - lastVolumeLevel) > 0.01 {
                 print("🔊 Volume changed: \(lastVolumeLevel) → \(currentVolume)")
                 
                 if currentVolume > lastVolumeLevel {
                     print("🎥 🎥 🎥 VOLUME UP - RECORDING! 🎥 🎥 🎥")
-                    // This will now properly call recordOneSecondVideo
                     DispatchQueue.main.async {
                         recordOneSecondVideo()
                     }
