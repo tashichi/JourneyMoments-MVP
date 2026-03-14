@@ -292,7 +292,7 @@ struct CameraView: View {
                 
                 onRecordingComplete(newSegment)
                 
-                successMessage = "✅ Segment \((currentProject?.segments.count ?? 0) + 1) recorded"
+                successMessage = "✅ Recorded!"
                 withAnimation(.easeInOut(duration: 0.3)) {
                     showSuccessToast = true
                 }
@@ -424,7 +424,6 @@ struct CameraView: View {
             let audioSession = AVAudioSession.sharedInstance()
             let currentVolume = audioSession.outputVolume
             
-            // ✅ 修正1: 1.0到達時の処理を追加
             if currentVolume == 1.0 && lastVolumeLevel < 1.0 {
                 print("🔊 Volume reached MAXIMUM (1.0)")
                 print("🎥 🎥 🎥 VOLUME UP TO MAX - RECORDING! 🎥 🎥 🎥")
@@ -432,10 +431,14 @@ struct CameraView: View {
                     recordOneSecondVideo()
                 }
                 lastVolumeLevel = currentVolume
+                
+                // ✅ 追加: ボリュームを中間値にリセット
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    (volumeView?.subviews.first(where: { $0 is UISlider }) as? UISlider)?.setValue(0.5, animated: false)
+                }
                 return
             }
             
-            // ✅ 修正2: 通常の変化検出
             if abs(currentVolume - lastVolumeLevel) > 0.01 {
                 print("🔊 Volume changed: \(lastVolumeLevel) → \(currentVolume)")
                 
@@ -454,7 +457,6 @@ struct CameraView: View {
         
         print("✅ Volume polling started")
     }
-    
     private func removeVolumeButtonShutter() {
         print("📍 Removing volume button shutter")
         
