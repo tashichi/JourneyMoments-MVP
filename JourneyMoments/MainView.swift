@@ -118,7 +118,7 @@ struct MainView: View {
         } message: {
             Text("Free version allows up to 3 projects. Upgrade to Full Version for unlimited projects and export features.")
         }
-        .alert("Delete Project", isPresented: $showDeleteConfirmation) {
+        .alert("Are you sure?", isPresented: $showDeleteConfirmation) {
             Button("Delete", role: .destructive) {
                 if let project = projectToDelete {
                     deleteProject(project)
@@ -129,9 +129,7 @@ struct MainView: View {
                 projectToDelete = nil
             }
         } message: {
-            if let project = projectToDelete {
-                Text("Delete \"\(project.name)\"?\nThis action cannot be undone.")
-            }
+            Text("This action cannot be undone.")
         }
         .alert("Export Status", isPresented: $showExportAlert) {
             Button("OK") {
