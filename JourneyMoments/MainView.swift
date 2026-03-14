@@ -79,8 +79,12 @@ struct MainView: View {
                         // 最新のプロジェクト状態を取得
                         guard let currentProject = projectManager.projects.first(where: { $0.id == project.id }) else { return }
                         
-                        var updatedProject = currentProject  // 最新の状態を使用
-                        updatedProject.segments.append(videoSegment)
+                        var updatedProject = currentProject
+                        var newSegment = videoSegment
+                        // ✅ 修正: 既存の最大order+1を使う（重複・固定を防ぐ）
+                        let maxOrder = updatedProject.segments.map { $0.order }.max() ?? 0
+                        newSegment.order = maxOrder + 1
+                        updatedProject.segments.append(newSegment)
                         projectManager.updateProject(updatedProject)
                         
                         // selectedProjectも更新
